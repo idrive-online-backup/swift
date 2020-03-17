@@ -21,6 +21,7 @@ from swift.common.middleware.s3api.controllers.obj import ObjectController
 
 from swift.common.middleware.s3api.controllers.acl import AclController
 from swift.common.middleware.s3api.controllers.s3_acl import S3AclController
+from swift.common.middleware.s3api.controllers.s3_bucket_policy import S3BucketPolicyController
 from swift.common.middleware.s3api.controllers.multi_delete import \
     MultiObjectDeleteController
 from swift.common.middleware.s3api.controllers.multi_upload import \
@@ -49,4 +50,5 @@ __all__ = [
     'VersioningController',
 
     'UnsupportedController',
+    'S3BucketPolicyController',
 ]

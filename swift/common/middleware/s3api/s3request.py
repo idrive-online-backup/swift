@@ -45,7 +45,8 @@ from swift.common.middleware.s3api.controllers import ServiceController, \
     ObjectController, AclController, MultiObjectDeleteController, \
     LocationController, LoggingStatusController, PartController, \
     UploadController, UploadsController, VersioningController, \
-    UnsupportedController, S3AclController, BucketController
+    UnsupportedController, S3AclController, BucketController, \
+    S3BucketPolicyController
 from swift.common.middleware.s3api.s3response import AccessDenied, \
     InvalidArgument, InvalidDigest, BucketAlreadyOwnedByYou, \
     RequestTimeTooSkewed, S3Response, SignatureDoesNotMatch, \
@@ -1484,6 +1485,8 @@ class S3AclRequest(S3Request):
     def controller(self):
         if 'acl' in self.params and not self.is_service_request:
             return S3AclController
+        elif 'policy' in self.params and not self.is_service_request:
+            return S3BucketPolicyController
         return super(S3AclRequest, self).controller
 
     def authenticate(self, app):
