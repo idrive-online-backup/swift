@@ -568,6 +568,69 @@ class CannedACL(object):
 
 canned_acl = CannedACL()
 
+# bucket policy related subresources
+
+
+class Resource(object):
+    def __init__(self):
+        raise NotImplemented
+
+
+class Action(object):
+    def __init__(self):
+        raise NotImplemented
+
+
+class Principal(object):
+    def __init__(self, principal):
+        self.principal = principal
+
+
+class Effect(object):
+    def __init__(self, effect):
+        """
+
+        @param effect:
+        """
+        self.effect = effect
+
+
+class Statement(object):
+
+    """
+        Statement Class which includes Effect, Prinicipal, Action and Resource
+    """
+    def __init__(self, effect, prinicipal, action, resource):
+        """
+
+        @param effect:
+        @param prinicipal:
+        @param action:
+        @param resource:
+        """
+        self.effect = effect
+        self.principal = prinicipal
+        self.action = action
+        self.resource = resource
+
+
+class Condition(object):
+
+    def __init__(self):
+        raise NotImplemented
+
+
+class BucketPolicy(object):
+    def __init__(self, statements, version="2020-03-17"):
+        """
+
+        @param statements:
+        @param version:
+        """
+        self.statements = statements
+        self.version = version
+
+
 ACLPrivate = canned_acl['private']
 ACLPublicRead = canned_acl['public-read']
 ACLPublicReadWrite = canned_acl['public-read-write']
