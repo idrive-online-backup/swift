@@ -60,7 +60,8 @@ from swift.common.middleware.s3api.exception import NotS3Request, \
     BadSwiftRequest
 from swift.common.middleware.s3api.utils import utf8encode, \
     S3Timestamp, mktime, MULTIUPLOAD_SUFFIX
-from swift.common.middleware.s3api.subresource import decode_acl, encode_acl
+from swift.common.middleware.s3api.subresource import decode_acl, encode_acl, \
+    decode_bucket_policy, encode_bucket_policy
 from swift.common.middleware.s3api.utils import sysmeta_header, \
     validate_bucket_name
 from swift.common.middleware.s3api.acl_utils import handle_acl_header
@@ -1547,6 +1548,9 @@ class S3AclRequest(S3Request):
             app, method, container, obj, headers, body, query)
         resp.bucket_acl = decode_acl(
             'container', resp.sysmeta_headers, self.allow_no_owner)
+        bucket_policy = decode_bucket_policy(resp.sysmeta_headers)
+        if bucket_policy:
+            resp.bucket_policy = bucket_policy
         resp.object_acl = decode_acl(
             'object', resp.sysmeta_headers, self.allow_no_owner)
 

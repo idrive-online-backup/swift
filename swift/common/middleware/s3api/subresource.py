@@ -126,6 +126,38 @@ def decode_acl(resource, headers, allow_no_owner):
         raise InvalidSubresource((resource, 'acl', value), e)
 
 
+def encode_bucket_policy(policy):
+    """
+    Encode an BucketPolicy instance to Swift metadata.
+
+    Given a BucketPolicy instance, this method returns HTTP
+    headers, which can be used for Swift metadata.
+    """
+    header_value = {}
+    headers = {}
+    key = sysmeta_header('bucket', 'policy')
+    headers[key] = json.dumps(policy, default=lambda o: o.__dict__)
+
+    return headers
+
+
+def decode_bucket_policy(headers):
+    """
+    Decode Swift metadata to an BucketPolicy instance.
+
+    Given a resource type and HTTP headers, this method returns a BucketPolicy
+    instance.
+    """
+    value = ''
+
+    key = sysmeta_header('bucket', 'policy')
+    if key in headers:
+        value = headers[key]
+    if value == '':
+        return None
+    return BucketPolicy(**json.loads(value))
+
+
 class Grantee(object):
     """
     Base class for grantee.
@@ -572,13 +604,13 @@ canned_acl = CannedACL()
 
 
 class Resource(object):
-    def __init__(self):
-        raise NotImplemented
+    def __init__(self, resource):
+        self.resource = resource
 
 
 class Action(object):
-    def __init__(self):
-        raise NotImplemented
+    def __init__(self, action):
+        self.action = action
 
 
 class Principal(object):
@@ -629,7 +661,6 @@ class BucketPolicy(object):
         """
         self.statements = statements
         self.version = version
-
 
 ACLPrivate = canned_acl['private']
 ACLPublicRead = canned_acl['public-read']

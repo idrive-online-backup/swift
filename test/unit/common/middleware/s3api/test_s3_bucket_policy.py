@@ -65,31 +65,39 @@ class TestS3ApiBucketPolicy(S3ApiTestCase):
         status, headers, body = self._test_bucket_policy_GET('test:tester')
         self.assertEqual(status.split()[0], '200')
 
-    # def _test_bucket_policy_PUT(self, account, permission='FULL_CONTROL'):
-    #     acl = ACL(self.default_owner, [Grant(User(account), permission)])
-    #     req = Request.blank('/bucket?acl',
-    #                         environ={'REQUEST_METHOD': 'PUT'},
-    #                         headers={'Authorization': 'AWS %s:hmac' % account,
-    #                                  'Date': self.get_date_header()},
-    #                         body=tostring(acl.elem()))
-    #
-    #     return self.call_s3api(req)
-    #
-    # def test_bucket_policy_PUT_without_permission(self):
-    #     status, headers, body = self._test_bucket_acl_PUT('test:other')
-    #     self.assertEqual(self._get_error_code(body), 'AccessDenied')
-    #
-    # def test_bucket_policy_PUT_with_write_acp_permission(self):
-    #     status, headers, body = self._test_bucket_acl_PUT('test:write_acp')
-    #     self.assertEqual(status.split()[0], '200')
-    #
-    # def test_bucket_policy_PUT_with_fullcontrol_permission(self):
-    #     status, headers, body = self._test_bucket_acl_PUT('test:full_control')
-    #     self.assertEqual(status.split()[0], '200')
-    #
-    # def test_bucket_policy_PUT_with_owner_permission(self):
-    #     status, headers, body = self._test_bucket_acl_PUT('test:tester')
-    #     self.assertEqual(status.split()[0], '200')
+    def _test_bucket_policy_PUT(self, account, statements):
+        bucket_policy = BucketPolicy(statements)
+        req = Request.blank('/bucket?acl',
+                            environ={'REQUEST_METHOD': 'PUT'},
+                            headers={'Authorization': 'AWS %s:hmac' % account,
+                                     'Date': self.get_date_header()},
+                            body=bucket_policy.to_json())
+
+        return self.call_s3api(req)
+
+    def _prepare_bucket_policy_statements(self, effect="*", principal=None, action="Allow", resource="" ):
+        statement = dict()
+        statement["effect"] = Effect(effect)
+        statement["principal"] = Principal(principal)
+        statement["action"] = Action(action)
+        statement["resource"] = Resource(resource)
+        return [statement]
+
+    def test_bucket_policy_PUT_without_permission(self):
+        status, headers, body = self._test_bucket_acl_PUT('test:other', self._prepare_bucket_policy_statements())
+        self.assertEqual(self._get_error_code(body), 'AccessDenied')
+
+    def test_bucket_policy_PUT_with_write_acp_permission(self):
+        status, headers, body = self._test_bucket_acl_PUT('test:write_acp', self._prepare_bucket_policy_statements())
+        self.assertEqual(status.split()[0], '200')
+
+    def test_bucket_policy_PUT_with_fullcontrol_permission(self):
+        status, headers, body = self._test_bucket_acl_PUT('test:full_control', self._prepare_bucket_policy_statements())
+        self.assertEqual(status.split()[0], '200')
+
+    def test_bucket_policy_PUT_with_owner_permission(self):
+        status, headers, body = self._test_bucket_acl_PUT('test:tester', self._prepare_bucket_policy_statements())
+        self.assertEqual(status.split()[0], '200')
 
 if __name__ == '__main__':
     unittest.main()
