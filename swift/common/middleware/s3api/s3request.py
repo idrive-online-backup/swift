@@ -117,6 +117,23 @@ def _header_acl_property(resource):
     return property(getter, setter, deleter,
                     doc='Get and set the %s acl property' % resource)
 
+def _header_bucket_policy_property():
+    """
+    Set and retrieve the acl in self.headers
+    """
+    def getter(self):
+        return getattr(self, '_%s' % "bucket")
+
+    def setter(self, value):
+        self.headers.update(encode_bucket_policy(value))
+        setattr(self, '_%s' % "bucket", value)
+
+    def deleter(self):
+        self.headers[sysmeta_header("bucket", 'policy')] = ''
+
+    return property(getter, setter, deleter,
+                    doc='Get and set the bucket bucket policy property')
+
 
 class HashingInput(object):
     """
@@ -514,6 +531,7 @@ class S3Request(swob.Request):
 
     bucket_acl = _header_acl_property('container')
     object_acl = _header_acl_property('object')
+    bucket_policy = _header_bucket_policy_property()
 
     def __init__(self, env, app=None, slo_enabled=True, storage_domain='',
                  location='us-east-1', force_request_log=False,
@@ -1546,6 +1564,8 @@ class S3AclRequest(S3Request):
 
         resp = self._get_response(
             app, method, container, obj, headers, body, query)
+        print('resp.sysmeta_headers', resp.sysmeta_headers)
+
         resp.bucket_acl = decode_acl(
             'container', resp.sysmeta_headers, self.allow_no_owner)
         bucket_policy = decode_bucket_policy(resp.sysmeta_headers)

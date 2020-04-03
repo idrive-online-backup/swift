@@ -49,7 +49,7 @@ Example::
   the end of method.
 
 """
-from swift.common.middleware.s3api.subresource import ACL, Owner, encode_acl
+from swift.common.middleware.s3api.subresource import ACL, Owner, encode_acl, BucketPolicy
 from swift.common.middleware.s3api.s3response import MissingSecurityHeader, \
     MalformedACLError, UnexpectedContent, AccessDenied
 from swift.common.middleware.s3api.etree import fromstring, XMLSyntaxError, \
@@ -59,14 +59,16 @@ from swift.common.middleware.s3api.utils import MULTIUPLOAD_SUFFIX, \
 
 
 def get_acl_handler(controller_name):
-    for base_klass in [BaseAclHandler, MultiUploadAclHandler]:
+    print(controller_name)
+    for base_klass in [BucketPolicyHandler, MultiUploadAclHandler]:
         # pylint: disable-msg=E1101
         for handler in base_klass.__subclasses__():
             handler_suffix_len = len('AclHandler') \
-                if not handler.__name__ == 'S3AclHandler' else len('Handler')
+                if not handler.__name__ == 'S3AclHandler' and \
+                   not handler.__name__ == 'S3BucketPolicyHandler' else len('Handler')
             if handler.__name__[:-handler_suffix_len] == controller_name:
                 return handler
-    return BaseAclHandler
+    return BucketPolicyHandler
 
 
 class BaseAclHandler(object):
@@ -83,13 +85,18 @@ class BaseAclHandler(object):
         self.logger = logger
 
     def request_with(self, container, obj, headers):
+        self.logger.debug("type(self) %s", type(self))
         return type(self)(self.req, self.logger,
                           container=container, obj=obj, headers=headers)
 
     def handle_acl(self, app, method, container=None, obj=None, headers=None):
         method = method or self.method
-
+        self.logger.debug("method %s", method)
         ah = self.request_with(container, obj, headers)
+        self.logger.debug("ah %s", ah)
+        self.logger.debug("hasattr(ah, method) %s", hasattr(ah, method))
+        self.logger.debug("getattr(ah, method) %s", getattr(ah, method))
+        self.logger.debug("app %s", app)
         if hasattr(ah, method):
             return getattr(ah, method)(app)
         else:
@@ -140,7 +147,11 @@ class BaseAclHandler(object):
         elif resource == 'container':
             resp = self.req.get_acl_response(app, 'HEAD',
                                              container, '')
+            self.logger.debug("resp %s", resp)
             acl = resp.bucket_acl
+            self.logger.debug("setting bucket policy in response")
+            if hasattr(resp, 'bucket_policy'):
+                policy = resp.bucket_policy
 
         try:
             acl.check_permission(self.user_id, permission)
@@ -181,7 +192,30 @@ class BaseAclHandler(object):
         return acl
 
 
-class BucketAclHandler(BaseAclHandler):
+class BucketPolicyHandler(BaseAclHandler):
+
+    def __init__(self, req, logger, container=None, obj=None, headers=None):
+        super(BucketPolicyHandler, self).__init__(req, logger, container, obj, headers)
+
+    def get_bucket_policy(self, body):
+        """
+        Get BucketPolicy instance json body.
+        """
+        self.logger.debug("body %s", body)
+        try:
+            # TODO - map the  body to BucketPolicy instance
+            policy = body
+        except Exception as e:
+            self.logger.error(e)
+            raise
+        return policy
+
+    # def _handle_acl(self, app, sw_method, container=None, obj=None,
+    #                 permission=None, headers=None):
+    #     super(self)._handle_acl(app, sw_method, container, obj, permission, headers)
+
+
+class BucketAclHandler(BucketPolicyHandler):
     """
     BucketAclHandler: Handler for BucketController
     """
@@ -227,7 +261,7 @@ class BucketAclHandler(BaseAclHandler):
         return self.req.get_acl_response(app, 'POST')
 
 
-class ObjectAclHandler(BaseAclHandler):
+class ObjectAclHandler(BucketPolicyHandler):
     """
     ObjectAclHandler: Handler for ObjectController
     """
@@ -244,7 +278,7 @@ class ObjectAclHandler(BaseAclHandler):
         self.req.object_acl = req_acl
 
 
-class S3AclHandler(BaseAclHandler):
+class S3AclHandler(BucketPolicyHandler):
     """
     S3AclHandler: Handler for S3AclController
     """
@@ -292,7 +326,21 @@ class S3AclHandler(BaseAclHandler):
             self._handle_acl(app, self.method)
 
 
-class MultiObjectDeleteAclHandler(BaseAclHandler):
+class S3BucketPolicyHandler(BucketPolicyHandler):
+
+    def GET(self, app):
+        self._handle_acl(app, 'HEAD', permission='READ_ACP')
+
+    def POST(self, app):
+        resp = self._handle_acl(app, 'HEAD')
+        self.logger.debug("resp %s", resp)
+        bucket_policy = self.get_bucket_policy(self.req.xml(ACL.max_xml_length))
+        self.req.bucket_policy = bucket_policy
+        self.logger.debug("bucket_policy %s", bucket_policy)
+
+
+
+class MultiObjectDeleteAclHandler(BucketPolicyHandler):
     """
     MultiObjectDeleteAclHandler: Handler for MultiObjectDeleteController
     """
@@ -306,7 +354,7 @@ class MultiObjectDeleteAclHandler(BaseAclHandler):
         pass
 
 
-class MultiUploadAclHandler(BaseAclHandler):
+class MultiUploadAclHandler(BucketPolicyHandler):
     """
     MultiUpload stuff requires acl checking just once for BASE container
     so that MultiUploadAclHandler extends BaseAclHandler to check acl only

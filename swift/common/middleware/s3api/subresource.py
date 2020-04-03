@@ -155,7 +155,8 @@ def decode_bucket_policy(headers):
         value = headers[key]
     if value == '':
         return None
-    return BucketPolicy(**json.loads(value))
+    # TODO use BucketPolicy(**json.loads(value))
+    return value
 
 
 class Grantee(object):
@@ -661,6 +662,12 @@ class BucketPolicy(object):
         """
         self.statements = statements
         self.version = version
+
+    @classmethod
+    def from_json(cls, policy):
+        return BucketPolicy(**json.loads(policy))
+
+
 
 ACLPrivate = canned_acl['private']
 ACLPublicRead = canned_acl['public-read']
