@@ -1,6 +1,7 @@
 import unittest
 from swift.common.middleware.s3api.subresource import BucketPolicy,\
     Statement, Principal, encode_bucket_policy, decode_bucket_policy, sysmeta_header
+import json
 
 
 class TestS3ApiBucketPolicySubResource(unittest.TestCase):
@@ -9,6 +10,9 @@ class TestS3ApiBucketPolicySubResource(unittest.TestCase):
         for policy_dict in [None, {}]:
             with self.assertRaises(AttributeError) as context:
                 BucketPolicy.from_dict(policy_dict)
+
+    def test_bucket_policy_from_dict_malformed_json(self):
+        pass
 
     def test_bucket_policy_from_dict(self):
         policy_dict1 = {
@@ -172,7 +176,7 @@ class TestS3ApiBucketPolicySubResource(unittest.TestCase):
            ]
         }
         headers = {sysmeta_header('bucket', 'policy'):
-                       access_control_policy}
+                       json.dumps(access_control_policy)}
         bucket_policy = decode_bucket_policy(headers)
         self.assertIsInstance(bucket_policy,  BucketPolicy)
         self.assertEqual("2020-04-06", bucket_policy.version)
@@ -188,7 +192,7 @@ class TestS3ApiBucketPolicySubResource(unittest.TestCase):
         stmt = Statement(None, "Allow", Principal("*"), "s3:GetObject", "arn:aws:s3:::bp-root/*", None)
         bucket_policy = BucketPolicy(None, "2020-04-06", [stmt])
         encoded_bucket_policy_headers = encode_bucket_policy(bucket_policy)
-        header_value = encoded_bucket_policy_headers[sysmeta_header('bucket', 'policy')]
+        header_value = json.loads(encoded_bucket_policy_headers[sysmeta_header('bucket', 'policy')])
         self.assertEqual(header_value["Version"], "2020-04-06")
         self.assertEqual(header_value["Statement"][0]["Effect"], "Allow")
         self.assertEqual(header_value["Statement"][0]["Principal"]["AWS"], "*")
