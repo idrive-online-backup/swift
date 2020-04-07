@@ -17,8 +17,7 @@ from six.moves.urllib.parse import quote
 from swift.common.utils import public
 
 from swift.common.middleware.s3api.controllers.base import Controller
-from swift.common.middleware.s3api.s3response import HTTPOk, HTTPNoContent
-from swift.common.middleware.s3api.etree import tostring
+from swift.common.middleware.s3api.s3response import HTTPOk, NoSuchKey, NoSuchBucketPolicy
 
 
 class S3BucketPolicyController(Controller):
@@ -36,12 +35,13 @@ class S3BucketPolicyController(Controller):
         """
 
         resp = req.get_response(self.app)
-        if hasattr(resp, "bucket_policy"):
+        if hasattr(resp, "bucket_policy") and resp.bucket_policy:
             bucket_policy = resp.bucket_policy
             resp = HTTPOk()
-            resp.body = bucket_policy
+            import json
+            resp.body = json.dumps(bucket_policy.to_dict())
         else:
-            resp = HTTPNoContent()
+            raise NoSuchBucketPolicy
 
         return resp
 

@@ -56,6 +56,7 @@ from swift.common.middleware.s3api.etree import fromstring, XMLSyntaxError, \
     DocumentInvalid
 from swift.common.middleware.s3api.utils import MULTIUPLOAD_SUFFIX, \
     sysmeta_header
+import json
 
 
 def get_acl_handler(controller_name):
@@ -202,9 +203,10 @@ class BucketPolicyHandler(BaseAclHandler):
         Get BucketPolicy instance json body.
         """
         self.logger.debug("body %s", body)
+        self.logger.debug("body %s", type(body))
         try:
-            # TODO - map the  body to BucketPolicy instance
-            policy = body
+            import json
+            policy = BucketPolicy.from_dict(json.loads(body))
         except Exception as e:
             self.logger.error(e)
             raise
