@@ -1,7 +1,7 @@
 import unittest
 from swift.common.middleware.s3api.subresource import BucketPolicy,\
     Statement, Principal, encode_bucket_policy, decode_bucket_policy, sysmeta_header
-import json
+from swift.common.utils import json
 
 
 class TestS3ApiBucketPolicySubResource(unittest.TestCase):
