@@ -94,10 +94,6 @@ class BaseAclHandler(object):
         method = method or self.method
         self.logger.debug("method %s", method)
         ah = self.request_with(container, obj, headers)
-        self.logger.debug("ah %s", ah)
-        self.logger.debug("hasattr(ah, method) %s", hasattr(ah, method))
-        self.logger.debug("getattr(ah, method) %s", getattr(ah, method))
-        self.logger.debug("app %s", app)
         if hasattr(ah, method):
             return getattr(ah, method)(app)
         else:
