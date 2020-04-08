@@ -12,7 +12,16 @@ class TestS3ApiBucketPolicySubResource(unittest.TestCase):
                 BucketPolicy.from_dict(policy_dict)
 
     def test_bucket_policy_from_dict_malformed_json(self):
-        pass
+        policy_dict = {
+            "Version": "2020-04-06",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                }
+            ]
+        }
+        with self.assertRaises(AttributeError) as context:
+            BucketPolicy.from_dict(policy_dict)
 
     def test_bucket_policy_from_dict(self):
         policy_dict1 = {

@@ -703,6 +703,6 @@ class NoSuchBucketPolicy (ErrorResponse):
     _status = '404 Not Found'
     _msg = 'The bucket policy does not exist'
 
-class MalformedBucketPolicy (ErrorResponse):
+class MalformedPolicy (ErrorResponse):
     _status = '400 Bad Request'
     _msg = 'This policy contains invalid Json'

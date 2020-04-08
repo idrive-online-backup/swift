@@ -15,9 +15,11 @@
 
 from six.moves.urllib.parse import quote
 from swift.common.utils import public
+import json
 
 from swift.common.middleware.s3api.controllers.base import Controller
-from swift.common.middleware.s3api.s3response import HTTPOk, NoSuchKey, NoSuchBucketPolicy
+from swift.common.middleware.s3api.s3response import HTTPOk, \
+    NoSuchBucketPolicy, MalformedPolicy
 
 
 class S3BucketPolicyController(Controller):
@@ -33,12 +35,10 @@ class S3BucketPolicyController(Controller):
         """
         Handles GET Bucket Policy.
         """
-
         resp = req.get_response(self.app)
         if hasattr(resp, "bucket_policy") and resp.bucket_policy:
             bucket_policy = resp.bucket_policy
             resp = HTTPOk()
-            import json
             resp.body = json.dumps(bucket_policy.to_dict())
         else:
             raise NoSuchBucketPolicy
@@ -50,6 +50,21 @@ class S3BucketPolicyController(Controller):
         """
         Handles PUT Bucket Policy.
         """
-        req.get_response(self.app, 'POST')
+        try:
+            req.get_response(self.app, 'POST')
+        except AttributeError as e:
+            raise MalformedPolicy
+
+        return HTTPOk()
+
+    @public
+    def DELETE(self, req):
+        """
+        Handles DELETE Bucket Policy.
+        """
+        try:
+            req.get_response(self.app, 'POST')
+        except NoSuchBucketPolicy as e:
+            raise NoSuchBucketPolicy
 
         return HTTPOk()

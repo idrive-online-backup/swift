@@ -51,7 +51,7 @@ Example::
 """
 from swift.common.middleware.s3api.subresource import ACL, Owner, encode_acl, BucketPolicy
 from swift.common.middleware.s3api.s3response import MissingSecurityHeader, \
-    MalformedACLError, UnexpectedContent, AccessDenied
+    MalformedACLError, UnexpectedContent, AccessDenied, NoSuchBucketPolicy
 from swift.common.middleware.s3api.etree import fromstring, XMLSyntaxError, \
     DocumentInvalid
 from swift.common.middleware.s3api.utils import MULTIUPLOAD_SUFFIX, \
@@ -153,6 +153,7 @@ class BaseAclHandler(object):
             self.logger.debug("setting bucket policy in response")
             if hasattr(resp, 'bucket_policy'):
                 policy = resp.bucket_policy
+                #TODO: use policy to vallidate ACL
 
         try:
             acl.check_permission(self.user_id, permission)
@@ -200,7 +201,7 @@ class BucketPolicyHandler(BaseAclHandler):
 
     def get_bucket_policy(self, body):
         """
-        Get BucketPolicy instance json body.
+        Get BucketPolicy instance from json body.
         """
         self.logger.debug("body %s", body)
         self.logger.debug("body %s", type(body))
@@ -331,15 +332,22 @@ class S3AclHandler(BucketPolicyHandler):
 class S3BucketPolicyHandler(BucketPolicyHandler):
 
     def GET(self, app):
-        self._handle_acl(app, 'HEAD', permission='READ_ACP')
+        self._handle_acl(app, 'HEAD')
 
     def POST(self, app):
+        self.logger.debug("res %s", self.req)
         resp = self._handle_acl(app, 'HEAD')
         self.logger.debug("resp %s", resp)
-        bucket_policy = self.get_bucket_policy(self.req.xml(ACL.max_xml_length))
-        self.req.bucket_policy = bucket_policy
-        self.logger.debug("bucket_policy %s", bucket_policy)
-
+        policy_body = self.req.xml(ACL.max_xml_length)
+        self.logger.debug("policy_body %s", policy_body)
+        if policy_body:
+            bucket_policy = self.get_bucket_policy(policy_body)
+            self.req.bucket_policy = bucket_policy
+            self.logger.debug("bucket_policy %s", bucket_policy)
+        elif resp.bucket_policy:
+            del self.req.bucket_policy
+        else:
+            raise NoSuchBucketPolicy
 
 
 class MultiObjectDeleteAclHandler(BucketPolicyHandler):

@@ -681,6 +681,7 @@ class Statement:
 
     @staticmethod
     def from_dict(obj):
+        Statement.validate(obj)
         sid = None
         if obj.get(u"Sid"):
             sid = from_str(obj.get(u"Sid"))
@@ -701,6 +702,14 @@ class Statement:
         if obj.get(u"Condition"):
             condition = Condition.from_dict(obj.get(u"Condition"))
         return Statement(sid, effect, principal, action, resource, condition)
+
+    @staticmethod
+    def validate(obj):
+        if not obj.get(u"Effect") or \
+                not obj.get(u"Principal") or \
+                not obj.get(u"Action") or \
+                not obj.get(u"Resource"):
+            raise AttributeError
 
     def to_dict(self):
         result = {}
@@ -733,6 +742,7 @@ class BucketPolicy:
     @staticmethod
     def from_dict(obj):
         try:
+            BucketPolicy.validate(obj)
             id = None
             if obj.get(u"Id"):
                 id = from_str(obj.get(u"Id"))
@@ -743,6 +753,11 @@ class BucketPolicy:
         except Exception as ex:
             raise AttributeError
         return BucketPolicy(id, version, statement)
+
+    @staticmethod
+    def validate(obj):
+        if not obj.get(u"Statement"):
+            raise AttributeError
 
     def to_dict(self):
         try:

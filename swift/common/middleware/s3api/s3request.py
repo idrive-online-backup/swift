@@ -122,13 +122,16 @@ def _header_bucket_policy_property():
     Set and retrieve the acl in self.headers
     """
     def getter(self):
+        print('getter invoked %s')
         return getattr(self, '_%s' % "bucket")
 
     def setter(self, value):
+        print('setter invoked %s', value)
         self.headers.update(encode_bucket_policy(value))
         setattr(self, '_%s' % "bucket", value)
 
     def deleter(self):
+        print('delete invoked %s')
         self.headers[sysmeta_header("bucket", 'policy')] = ''
 
     return property(getter, setter, deleter,
@@ -1568,9 +1571,7 @@ class S3AclRequest(S3Request):
 
         resp.bucket_acl = decode_acl(
             'container', resp.sysmeta_headers, self.allow_no_owner)
-        bucket_policy = decode_bucket_policy(resp.sysmeta_headers)
-        if bucket_policy:
-            resp.bucket_policy = bucket_policy
+        resp.bucket_policy = decode_bucket_policy(resp.sysmeta_headers)
         resp.object_acl = decode_acl(
             'object', resp.sysmeta_headers, self.allow_no_owner)
 

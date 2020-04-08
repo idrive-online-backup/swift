@@ -76,6 +76,7 @@ class Statement:
 
     @staticmethod
     def from_dict(obj):
+        Statement.validate(obj)
         sid = None
         if obj.get(u"Sid"):
             sid = from_str(obj.get(u"Sid"))
@@ -96,6 +97,14 @@ class Statement:
         if obj.get(u"Condition"):
             condition = Condition.from_dict(obj.get(u"Condition"))
         return Statement(sid, effect, principal, action, resource, condition)
+
+    @staticmethod
+    def validate(obj):
+        if not obj.get(u"Effect") or\
+                not obj.get(u"Principal") or\
+                not obj.get(u"Action") or\
+                not obj.get(u"Resource"):
+            raise AttributeError
 
     def to_dict(self):
         result = {}
@@ -128,6 +137,7 @@ class BucketPolicy:
     @staticmethod
     def from_dict(obj):
         try:
+            BucketPolicy.validate(obj)
             id = None
             if obj.get(u"Id"):
                 id = from_str(obj.get(u"Id"))
@@ -138,6 +148,11 @@ class BucketPolicy:
         except Exception as ex:
             raise AttributeError
         return BucketPolicy(id, version, statement)
+
+    @staticmethod
+    def validate(obj):
+        if not obj.get(u"Statement"):
+            raise AttributeError
 
     def to_dict(self):
         try:
@@ -152,29 +167,15 @@ class BucketPolicy:
         return result
 
 if __name__ == '__main__':
-    policy_dict = {
-        "Version": "2020-04-06",
-        "Statement": [
-            {
-                "Effect": "Allow",
-                "Principal": {
-                    "AWS": "*"
-                },
-                "Action": "s3:GetObject",
-                "Resource": [
-                    "arn:aws:s3:::bp-root/*"
-                ]
-            }
-        ]
-    }
+    policy_dict = {"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"*"},"Action":"s3:GetObject","Resource":"arn:aws:s3:::examplebucket/*"}]}
     print(type(policy_dict))
     bp = BucketPolicy.from_dict(policy_dict)
-    # print(bp.statement[0].principal.aws)
-    # policy_dict_from_dict = bp.to_dict()
-    # print(policy_dict_from_dict)
+    print(bp)
+    policy_dict_from_dict = bp.to_dict()
+    print(policy_dict_from_dict)
     # print(policy_dict == policy_dict_from_dict)
 
-    stmt = Statement(None, "Allow", Principal("*"), "arn:aws:s3:::bp-root/*", None)
+    stmt = Statement(None, "Allow", Principal("*"), "*", "arn:aws:s3:::bp-root/*", None)
     bucket_policy = BucketPolicy(None, "2020-04-06", [stmt])
     import json
     print(json.dumps(bucket_policy.to_dict()))
