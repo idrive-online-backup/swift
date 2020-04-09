@@ -36,7 +36,7 @@ class S3BucketPolicyController(Controller):
         Handles GET Bucket Policy.
         """
         resp = req.get_response(self.app)
-        if hasattr(resp, "bucket_policy") and resp.bucket_policy:
+        if resp.bucket_policy:
             bucket_policy = resp.bucket_policy
             resp = HTTPOk()
             resp.body = json.dumps(bucket_policy.to_dict())

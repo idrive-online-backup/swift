@@ -51,7 +51,7 @@ Example::
 """
 from swift.common.middleware.s3api.subresource import ACL, Owner, encode_acl, BucketPolicy
 from swift.common.middleware.s3api.s3response import MissingSecurityHeader, \
-    MalformedACLError, UnexpectedContent, AccessDenied, NoSuchBucketPolicy
+    MalformedACLError, UnexpectedContent, AccessDenied, NoSuchBucketPolicy, MissingRequestBodyError
 from swift.common.middleware.s3api.etree import fromstring, XMLSyntaxError, \
     DocumentInvalid
 from swift.common.middleware.s3api.utils import MULTIUPLOAD_SUFFIX, \
@@ -331,19 +331,20 @@ class S3BucketPolicyHandler(BucketPolicyHandler):
         self._handle_acl(app, 'HEAD')
 
     def POST(self, app):
-        self.logger.debug("res %s", self.req)
         resp = self._handle_acl(app, 'HEAD')
-        self.logger.debug("resp %s", resp)
-        policy_body = self.req.xml(ACL.max_xml_length)
-        self.logger.debug("policy_body %s", policy_body)
-        if policy_body:
-            bucket_policy = self.get_bucket_policy(policy_body)
-            self.req.bucket_policy = bucket_policy
-            self.logger.debug("bucket_policy %s", bucket_policy)
-        elif resp.bucket_policy:
-            del self.req.bucket_policy
+        if self.req.method == "PUT":
+            policy_body = self.req.xml(ACL.max_xml_length)
+            if policy_body:
+                bucket_policy = self.get_bucket_policy(policy_body)
+                self.req.bucket_policy = bucket_policy
+            else:
+                raise MissingRequestBodyError
         else:
-            raise NoSuchBucketPolicy
+            # delete bucket policy
+            if resp.bucket_policy:
+                del self.req.bucket_policy
+            else:
+                raise NoSuchBucketPolicy
 
 
 class MultiObjectDeleteAclHandler(BucketPolicyHandler):
