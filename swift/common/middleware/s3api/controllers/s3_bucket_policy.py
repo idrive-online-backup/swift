@@ -26,8 +26,9 @@ class S3BucketPolicyController(Controller):
     """
     Handles the following APIs:
 
-    * GET Bucket Policy acl
-    * PUT Bucket Policy acl
+    * GET Bucket Policy
+    * PUT Bucket Policy
+    * DELETE Bucket Policy
 
     """
     @public
