@@ -256,9 +256,9 @@ class TestS3ApiBucketPolicySubResource(unittest.TestCase):
         res = BucketPolicy.match_principal("test:tester", "*")
         self.assertTrue(res)
         principal = Principal("arn:aws:iam::test:tester")
-        res = BucketPolicy.match_principal("tester", principal)
+        res = BucketPolicy.match_principal("test:tester", principal)
         self.assertTrue(res)
-        res = BucketPolicy.match_principal("tester1", principal)
+        res = BucketPolicy.match_principal("test:tester1", principal)
         self.assertFalse(res)
 
     def test_match_resource(self):

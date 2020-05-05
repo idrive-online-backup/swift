@@ -219,7 +219,7 @@ class TestS3BucketPolicy(S3ApiBase):
                 {
                     "Effect": "Allow",
                     "Principal": {
-                        "AWS": "*"
+                        "AWS": "arn:aws:iam::test:tester2"
                     },
                     "Action": ["s3:PutObject"],
                     "Resource": [
@@ -257,7 +257,7 @@ class TestS3BucketPolicy(S3ApiBase):
                 {
                     "Effect": "Allow",
                     "Principal": {
-                        "AWS": "*"
+                        "AWS": "arn:aws:iam::test:tester2"
                     },
                     "Action": ["s3:GetObject"],
                     "Resource": [
@@ -273,6 +273,41 @@ class TestS3BucketPolicy(S3ApiBase):
         status, headers, body = \
             self.conn2.make_request('GET', self.bucket, obj)
         self.assertEqual(status, 200)
+
+    def test_bucket_policy_delete_object_key2(self):
+        self.conn.make_request('PUT', self.bucket, None)
+        obj = 'object'
+        content = b'abc123'
+        # PUT Object
+        status, headers, body = \
+            self.conn.make_request('PUT', self.bucket, obj, body=content)
+        self.assertEqual(status, 200)
+
+        status, headers, body = \
+            self.conn2.make_request('DELETE', self.bucket, obj)
+        self.assertEqual(status, 403)
+        policy_dict = {
+            "Version": "2020-04-06",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Principal": {
+                        "AWS": "arn:aws:iam::test:tester2"
+                    },
+                    "Action": ["s3:DeleteObject"],
+                    "Resource": [
+                        "arn:aws:s3:::{}/*".format(self.bucket)
+                    ]
+                }
+            ]
+        }
+        status, headers, body = \
+            self.conn.make_request('PUT', self.bucket, body=json.dumps(policy_dict),
+                                   query="policy")
+        self.assertEqual(status, 200)
+        status, headers, body = \
+            self.conn2.make_request('DELETE', self.bucket, obj)
+        self.assertEqual(status, 204)
 
 
 
