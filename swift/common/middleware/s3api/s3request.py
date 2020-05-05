@@ -1577,7 +1577,7 @@ class S3AclRequest(S3Request):
 
         resp.bucket_acl = decode_acl(
             'container', resp.sysmeta_headers, self.allow_no_owner)
-        resp.bucket_policy = decode_bucket_policy(resp.sysmeta_headers)
+        resp.bucket_policy = decode_bucket_policy(resp.sysmeta_headers, self.allow_no_owner)
         resp.object_acl = decode_acl(
             'object', resp.sysmeta_headers, self.allow_no_owner)
 

@@ -17,9 +17,10 @@ import unittest
 import os
 import test.functional as tf
 import json
+import botocore
 
 from test.functional.s3api import S3ApiBase
-from test.functional.s3api.s3_test_client import Connection
+from test.functional.s3api.s3_test_client import Connection, get_boto3_conn
 from test.functional.s3api.utils import get_error_code
 
 
@@ -45,6 +46,14 @@ class TestS3BucketPolicy(S3ApiBase):
         access_key3 = tf.config['s3_access_key3']
         secret_key3 = tf.config['s3_secret_key3']
         self.conn3 = Connection(access_key3, secret_key3, access_key3)
+        if 's3_access_key2' not in tf.config or \
+                's3_secret_key2' not in tf.config:
+            raise tf.SkipTest(
+                'TestS3Acl requires s3_access_key2 and s3_secret_key2 '
+                'configured for reduced-access user')
+        access_key2 = tf.config['s3_access_key2']
+        secret_key2 = tf.config['s3_secret_key2']
+        self.conn2 = Connection(access_key2, secret_key2, access_key2)
 
     def test_bucket_policy(self):
         self.conn.make_request('PUT', self.bucket, None)
@@ -157,6 +166,114 @@ class TestS3BucketPolicy(S3ApiBase):
         status, headers, body = \
             self.conn.make_request('DELETE', self.bucket, query='policy')
         self.assertEqual(get_error_code(body), 'NoSuchBucketPolicy')
+
+    def test_bucket_policy_list_objects_key2(self):
+        self.conn.make_request('PUT', self.bucket, None)
+        conn2 = get_boto3_conn(tf.config['s3_access_key2'],
+                               tf.config['s3_secret_key2'])
+        with self.assertRaises(botocore.exceptions.ClientError) as ctx:
+            conn2.list_objects(Bucket=self.bucket)
+        self.assertEqual(
+            ctx.exception.response['ResponseMetadata']['HTTPStatusCode'], 403)
+        self.assertEqual(ctx.exception.response['Error']['Code'], 'AccessDenied')
+        policy_dict = {
+            "Version": "2020-04-06",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Principal": {
+                        "AWS": "*"
+                    },
+                    "Action": "s3:ListBucket",
+                    "Resource": [
+                        "arn:aws:s3:::{}/*".format(self.bucket)
+                    ]
+                }
+            ]
+        }
+        status, headers, body = \
+            self.conn.make_request('PUT', self.bucket, body=json.dumps(policy_dict),
+                                   query="policy")
+        self.assertEqual(status, 200)
+        resp = conn2.list_objects(Bucket=self.bucket)
+        self.assertEqual(200, resp['ResponseMetadata']['HTTPStatusCode'])
+
+    def test_bucket_policy_put_object_key2(self):
+        self.conn.make_request('PUT', self.bucket, None)
+        obj = 'object'
+        content = b'abc123'
+        # PUT Object
+        status, headers, body = \
+            self.conn.make_request('PUT', self.bucket, obj, body=content)
+        self.assertEqual(status, 200)
+        status, headers, body = \
+            self.conn.make_request('GET', self.bucket, obj)
+        self.assertEqual(status, 200)
+
+        status, headers, body = \
+            self.conn2.make_request('PUT', self.bucket, obj, body=content)
+        self.assertEqual(status, 403)
+        policy_dict = {
+            "Version": "2020-04-06",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Principal": {
+                        "AWS": "*"
+                    },
+                    "Action": ["s3:PutObject"],
+                    "Resource": [
+                        "arn:aws:s3:::{}/*".format(self.bucket)
+                    ]
+                }
+            ]
+        }
+        status, headers, body = \
+            self.conn.make_request('PUT', self.bucket, body=json.dumps(policy_dict),
+                                   query="policy")
+        self.assertEqual(status, 200)
+        status, headers, body = \
+            self.conn2.make_request('PUT', self.bucket, obj, body=content)
+        self.assertEqual(status, 200)
+
+    def test_bucket_policy_get_object_key2(self):
+        self.conn.make_request('PUT', self.bucket, None)
+        obj = 'object'
+        content = b'abc123'
+        # PUT Object
+        status, headers, body = \
+            self.conn.make_request('PUT', self.bucket, obj, body=content)
+        self.assertEqual(status, 200)
+        status, headers, body = \
+            self.conn.make_request('GET', self.bucket, obj)
+        self.assertEqual(status, 200)
+
+        status, headers, body = \
+            self.conn2.make_request('GET', self.bucket, obj)
+        self.assertEqual(status, 403)
+        policy_dict = {
+            "Version": "2020-04-06",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Principal": {
+                        "AWS": "*"
+                    },
+                    "Action": ["s3:GetObject"],
+                    "Resource": [
+                        "arn:aws:s3:::{}/*".format(self.bucket)
+                    ]
+                }
+            ]
+        }
+        status, headers, body = \
+            self.conn.make_request('PUT', self.bucket, body=json.dumps(policy_dict),
+                                   query="policy")
+        self.assertEqual(status, 200)
+        status, headers, body = \
+            self.conn2.make_request('GET', self.bucket, obj)
+        self.assertEqual(status, 200)
+
 
 
 class TestS3AclSigV4(TestS3BucketPolicy):

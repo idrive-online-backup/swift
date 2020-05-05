@@ -141,9 +141,9 @@ def encode_bucket_policy(policy):
     return headers
 
 
-def decode_bucket_policy(headers):
+def decode_bucket_policy(headers, allow_no_owner):
     """
-    Decode Swift metadata to an BucketPolicy instance.
+    Decode Swift metadata to a BucketPolicy instance.
 
     Given a resource type and HTTP headers, this method returns a BucketPolicy
     instance.
@@ -155,7 +155,7 @@ def decode_bucket_policy(headers):
         value = headers[key]
     if value == '':
         return None
-    return BucketPolicy.from_dict(json.loads(value))
+    return BucketPolicy.from_dict(json.loads(value), True, allow_no_owner)
 
 
 class Grantee(object):
@@ -618,14 +618,27 @@ def to_class(c, x):
 
 class IPAddress:
     def __init__(self, aws_source_ip):
+        """
+
+        @param aws_source_ip:
+        """
         self.aws_source_ip = aws_source_ip
 
     @staticmethod
     def from_dict(obj):
+        """
+
+        @param obj:
+        @return:
+        """
         aws_source_ip = from_str(obj.get(u"aws:SourceIp"))
         return IPAddress(aws_source_ip)
 
     def to_dict(self):
+        """
+
+        @return:
+        """
         result = {}
         result[u"aws:SourceIp"] = from_str(self.aws_source_ip)
         return result
@@ -633,16 +646,30 @@ class IPAddress:
 
 class Condition:
     def __init__(self, ip_address, not_ip_address):
+        """
+
+        @param ip_address:
+        @param not_ip_address:
+        """
         self.ip_address = ip_address
         self.not_ip_address = not_ip_address
 
     @staticmethod
     def from_dict(obj):
+        """
+
+        @param obj:
+        @return:
+        """
         ip_address = IPAddress.from_dict(obj.get(u"IpAddress"))
         not_ip_address = IPAddress.from_dict(obj.get(u"NotIpAddress"))
         return Condition(ip_address, not_ip_address)
 
     def to_dict(self):
+        """
+
+        @return:
+        """
         result = {}
         result[u"IpAddress"] = to_class(IPAddress, self.ip_address)
         result[u"NotIpAddress"] = to_class(IPAddress, self.not_ip_address)
@@ -651,10 +678,19 @@ class Condition:
 
 class Principal:
     def __init__(self, aws):
+        """
+
+        @param aws:
+        """
         self.aws = aws
 
     @staticmethod
     def from_dict(obj):
+        """
+
+        @param obj:
+        @return:
+        """
         if isinstance(obj.get(u"AWS"), list):
             aws = from_list(from_str, obj.get(u"AWS"))
         else:
@@ -662,6 +698,10 @@ class Principal:
         return Principal(aws)
 
     def to_dict(self):
+        """
+
+        @return:
+        """
         result = {}
         if isinstance(self.aws, list):
             result[u"AWS"] = from_list(from_str, self.aws)
@@ -672,6 +712,15 @@ class Principal:
 
 class Statement:
     def __init__(self, sid, effect, principal, action, resource, condition=None):
+        """
+
+        @param sid:
+        @param effect:
+        @param principal:
+        @param action:
+        @param resource:
+        @param condition:
+        """
         self.sid = sid
         self.effect = effect
         self.principal = principal
@@ -681,6 +730,11 @@ class Statement:
 
     @staticmethod
     def from_dict(obj):
+        """
+
+        @param obj:
+        @return:
+        """
         Statement.validate(obj)
         sid = None
         if obj.get(u"Sid"):
@@ -705,6 +759,11 @@ class Statement:
 
     @staticmethod
     def validate(obj):
+        """
+
+        @param obj:
+        @return:
+        """
         if not obj.get(u"Effect") or \
                 not obj.get(u"Principal") or \
                 not obj.get(u"Action") or \
@@ -712,6 +771,10 @@ class Statement:
             raise AttributeError
 
     def to_dict(self):
+        """
+
+        @return:
+        """
         result = {}
         if self.sid:
             result[u"Sid"] = from_str(self.sid)
@@ -734,13 +797,28 @@ class Statement:
 
 
 class BucketPolicy:
-    def __init__(self, id, version, statement):
+    def __init__(self, id, version, statement, s3_acl=False, allow_no_owner=False):
+        """
+
+        @param id:
+        @param version:
+        @param statement:
+        @param s3_acl:
+        @param allow_no_owner:
+        """
         self.id = id
         self.version = version
         self.statement = statement
+        self.s3_acl = s3_acl
+        self.allow_no_owner = allow_no_owner
 
     @staticmethod
-    def from_dict(obj):
+    def from_dict(obj, s3_acl=False, allow_no_owner=False):
+        """
+
+        @param obj:
+        @return:
+        """
         try:
             BucketPolicy.validate(obj)
             id = None
@@ -752,25 +830,172 @@ class BucketPolicy:
             statement = from_list(Statement.from_dict, obj.get(u"Statement"))
         except Exception as ex:
             raise AttributeError
-        return BucketPolicy(id, version, statement)
+        return BucketPolicy(id, version, statement, s3_acl, allow_no_owner)
 
     @staticmethod
     def validate(obj):
+        """
+
+        @param obj:
+        @return:
+        """
         if not obj.get(u"Statement"):
             raise AttributeError
 
     def to_dict(self):
+        """
+
+        @return:
+        """
         try:
             result = {}
             if self.id:
                 result[u"Id"] = from_str(self.id)
             if self.version:
                 result[u"Version"] = self.version
-            result[u"Statement"] = from_list(lambda x: to_class(Statement, x), self.statement)
+            result[u"Statement"] = from_list(lambda x: to_class(Statement, x),
+                                             self.statement)
         except Exception as ex:
             raise AttributeError
         return result
 
+    def check_permission(self, user_id, owner_id, method, bucket, key=None, req_source_ip=None):
+        """
+
+        @param user_id:
+        @param owner_id:
+        @param method:
+        @param container:
+        @param obj:
+        @param req_source_ip:
+        @return:
+        """
+        try:
+            self.check_owner(user_id, owner_id)
+            return
+        except AccessDenied:
+            pass
+        resource = "object" if key else "container"
+        user_action = BucketPolicy.user_action(resource, method)
+        for statement in self.statement:
+            if statement.effect == "Allow":
+                principal = statement.principal
+                resource = statement.resource
+                action = statement.action
+                condition = statement.condition
+                if BucketPolicy.match_principal(user_id, principal) \
+                        and BucketPolicy.match_resource(resource, bucket, key) \
+                        and user_action in action :
+                    return
+        raise AccessDenied
+
+    def check_owner(self, user_id, owner_id):
+        """
+        Check that the user is an owner.
+
+        @param user_id:
+        @param owner_id:
+        @return:
+        """
+        if not self.s3_acl:
+            # Ignore S3api ACL.
+            return
+
+        if not owner_id:
+            if self.allow_no_owner:
+                # No owner means public.
+                return
+            raise AccessDenied()
+
+        if user_id != owner_id:
+            raise AccessDenied()
+
+    @staticmethod
+    def user_action(resource, method, subresource=None):
+        """
+
+        @param resource:
+        @param method:
+        @param subresource
+        @return:
+        """
+        if resource == "object":
+            action = "s3:{}{}".format(method.capitalize(), resource.capitalize())
+        else:
+            # refer @BucketPolicyActions to see how mapping is being done
+            if method == "GET":
+                method = "List"
+            elif method == "PUT":
+                method = "Create"
+            action = "s3:{}{}".format(method.capitalize(), "Bucket")
+        if subresource:
+            action = "{}{}".format(action, subresource.capitalize())
+        return action
+
+    @staticmethod
+    def match_action(action, user_action):
+        """
+
+        @param action:
+        @param user_action:
+        @return:
+        """
+        if action == "*":
+            return True
+        if isinstance(action, list):
+            return user_action in action
+        else:
+            return action == user_action
+        return False
+
+    @staticmethod
+    def match_principal(user_id, principal):
+        """
+
+        @param user_id:
+        @param principal:
+        @return:
+        """
+        if principal == "*":
+            return True
+        if principal.aws:
+            if isinstance(principal.aws, list):
+                for user in principal.aws:
+                    if user_id == user.rpartition(':')[-1]:
+                        return True
+            elif principal.aws == "*":
+                return True
+            else:
+                if user_id == principal.aws.rpartition(':')[-1]:
+                    return True
+        return False
+
+    @staticmethod
+    def match_resource(resource, container, obj):
+        """
+
+        @param resource:
+        @param container:
+        @param obj:
+        @return:
+        """
+        if isinstance(resource, list):
+            for item in resource:
+                part = item.partition(container)
+                if part[1] == container:
+                    if obj and ("/*" == part[2]  or "/{}".format(obj) == part[2]):
+                        return True
+                    elif not obj:
+                        return True
+        else:
+            part = resource.partition(container)
+            if part[1] == container:
+                if obj and ("/*" == part[2]  or "/{}".format(obj) == part[2]):
+                    return True
+                elif not obj:
+                    return True
+
+        return False
 
 
 ACLPrivate = canned_acl['private']
@@ -780,3 +1005,31 @@ ACLAuthenticatedRead = canned_acl['authenticated-read']
 ACLBucketOwnerRead = canned_acl['bucket-owner-read']
 ACLBucketOwnerFullControl = canned_acl['bucket-owner-full-control']
 ACLLogDeliveryWrite = canned_acl['log-delivery-write']
+
+BucketPolicyActions = [
+    "s3:AbortMultipartUpload",
+    "s3:CreateBucket",
+    "s3:DeleteBucket",
+    "s3:DeleteBucketPolicy",
+    "s3:DeleteObject",
+    "s3:DeleteObjectVersion",
+    "s3:GetBucketAcl",
+    "s3:GetBucketLocation",
+    "s3:GetBucketPolicy",
+    "s3:GetBucketVersioning",
+    "s3:GetObject",
+    "s3:GetObjectAcl",
+    "s3:GetObjectVersion",
+    "s3:HeadBucket",
+    "s3:ListBucket",
+    "s3:ListAllMyBuckets"
+    "s3:ListBucketMultipartUploads",
+    "s3:ListBucketVersions",
+    "s3:ListMultipartUploadParts",
+    "s3:PutBucketPolicy",
+    "s3:PutBucketVersioning",
+    "s3:PutObject",
+    "s3:PutObjectAcl"
+]
+
+

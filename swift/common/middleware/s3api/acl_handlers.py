@@ -209,9 +209,88 @@ class BucketPolicyHandler(BaseAclHandler):
             raise
         return policy
 
-    # def _handle_acl(self, app, sw_method, container=None, obj=None,
-    #                 permission=None, headers=None):
-    #     super(self)._handle_acl(app, sw_method, container, obj, permission, headers)
+    def _handle_acl(self, app, sw_method, container=None, obj=None,
+                    permission=None, headers=None):
+        """
+        General bucket policy handling method.
+        This method expects to call Request._get_response() in outside of
+        this method so that this method returns response only when sw_method
+        is HEAD.
+        """
+        container = self.container if container is None else container
+        obj = self.obj if obj is None else obj
+        self.logger.debug("container %s", self.container)
+        self.logger.debug("obj %s", self.obj)
+        sw_method = sw_method or self.req.environ['REQUEST_METHOD']
+        resource = 'object' if obj else 'container'
+        headers = self.headers if headers is None else headers
+
+        self.logger.debug(
+            'checking permission: %s %s %s %s' %
+            (container, obj, sw_method, dict(headers)))
+
+        if not container:
+            return
+
+        # self.logger.debug("resource %s", resource)
+
+        if not permission and (self.method, sw_method, resource) in ACL_MAP:
+            acl_check = ACL_MAP[(self.method, sw_method, resource)]
+            resource = acl_check.get('Resource') or resource
+            permission = acl_check['Permission']
+
+        if not permission:
+            self.logger.debug(
+                '%s %s %s %s' % (container, obj, sw_method, headers))
+            raise Exception('No permission to be checked exists')
+        #
+        # if resource == 'object':
+        #     version_id = self.req.params.get('versionId')
+        #     if version_id is None:
+        #         query = {}
+        #     else:
+        #         query = {'version-id': version_id}
+        #     resp = self.req.get_acl_response(app, 'HEAD',
+        #                                      container, obj,
+        #                                      headers, query=query)
+        #     acl = resp.object_acl
+        # elif resource == 'container':
+        #     pass
+        resp = self.req.get_acl_response(app, 'HEAD',
+                                         container, '')
+        acl = resp.bucket_acl
+        policy = resp.bucket_policy
+
+        try:
+            self.logger.debug("self.user_id %s", self.user_id)
+            self.logger.debug("acl.owner %s", acl.owner.id)
+            self.logger.debug("policy %s", policy)
+            self.logger.debug("resource %s", resource)
+            self.logger.debug("self.obj %s", self.obj)
+            if policy:
+                policy.check_permission(self.user_id, acl.owner.id,
+                                        self.req.method, self.container, self.obj)
+            else:
+                if resource == 'object':
+                    version_id = self.req.params.get('versionId')
+                    if version_id is None:
+                        query = {}
+                    else:
+                        query = {'version-id': version_id}
+                    resp = self.req.get_acl_response(app, 'HEAD',
+                                                     container, obj,
+                                                     headers, query=query)
+                    acl = resp.object_acl
+                acl.check_permission(self.user_id, permission)
+        except Exception as e:
+            self.logger.debug(acl)
+            self.logger.debug('permission denined: %s %s %s' %
+                              (e, self.user_id, permission))
+            raise
+
+        if sw_method == 'HEAD':
+            return resp
+
 
 
 class BucketAclHandler(BucketPolicyHandler):

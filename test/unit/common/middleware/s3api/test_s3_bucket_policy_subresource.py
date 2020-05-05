@@ -2,6 +2,7 @@ import unittest
 from swift.common.middleware.s3api.subresource import BucketPolicy,\
     Statement, Principal, encode_bucket_policy, decode_bucket_policy, sysmeta_header
 from swift.common.utils import json
+from swift.common.middleware.s3api.s3response import AccessDenied
 
 
 class TestS3ApiBucketPolicySubResource(unittest.TestCase):
@@ -186,7 +187,7 @@ class TestS3ApiBucketPolicySubResource(unittest.TestCase):
         }
         headers = {sysmeta_header('bucket', 'policy'):
                        json.dumps(access_control_policy)}
-        bucket_policy = decode_bucket_policy(headers)
+        bucket_policy = decode_bucket_policy(headers, True)
         self.assertIsInstance(bucket_policy,  BucketPolicy)
         self.assertEqual("2020-04-06", bucket_policy.version)
         self.assertIsInstance(bucket_policy.statement[0], Statement)
@@ -208,6 +209,63 @@ class TestS3ApiBucketPolicySubResource(unittest.TestCase):
         self.assertEqual(header_value["Statement"][0]["Action"], "s3:GetObject")
         self.assertEqual(header_value["Statement"][0]["Resource"], "arn:aws:s3:::bp-root/*")
         self.assertEqual(header_value["Statement"][0]["Action"], "s3:GetObject")
+
+    def test_user_action(self):
+        resp = BucketPolicy.user_action("object", "GET")
+        self.assertEqual("s3:GetObject", resp)
+        resp = BucketPolicy.user_action("object", "PUT")
+        self.assertEqual("s3:PutObject", resp)
+        resp = BucketPolicy.user_action("object", "PUT", "ACL")
+        self.assertEqual("s3:PutObjectAcl", resp)
+        resp = BucketPolicy.user_action("container", "PUT")
+        self.assertEqual("s3:CreateBucket", resp)
+        resp = BucketPolicy.user_action("container", "GET")
+        self.assertEqual("s3:ListBucket", resp)
+        resp = BucketPolicy.user_action("container", "DELETE")
+        self.assertEqual("s3:DeleteBucket", resp)
+        resp = BucketPolicy.user_action("container", "GET", "ACL")
+        self.assertEqual("s3:ListBucketAcl", resp)
+
+    def check_owner(self, bucket_policy, user_id, owner_id):
+        try:
+            bucket_policy.check_owner(user_id, owner_id)
+            return True
+        except AccessDenied:
+            return False
+
+    def test_bucket_policy_check_owner(self):
+        bp = BucketPolicy(None,None, None, None)
+        bp.s3_acl = True
+        result = self.check_owner(bp, "test:tester", None)
+        self.assertFalse(result)
+        bp.allow_no_owner = True
+        result = self.check_owner(bp, "test:tester", None)
+        self.assertTrue(result)
+        result = self.check_owner(bp, "test:tester", "test:tester")
+        self.assertTrue(result)
+        result = self.check_owner(bp, "test:tester", "test:tester2")
+        self.assertFalse(result)
+
+    def test_bucket_policy_match_action(self):
+        res = BucketPolicy.match_action("*", "s3:GetObject")
+        self.assertTrue(res)
+        res = BucketPolicy.match_action(["s3:GetObject", "s3:PutObject"], "s3:ListBucket")
+        self.assertFalse(res)
+
+    def test_bucket_policy_match_principal(self):
+        res = BucketPolicy.match_principal("test:tester", "*")
+        self.assertTrue(res)
+        principal = Principal("arn:aws:iam::test:tester")
+        res = BucketPolicy.match_principal("tester", principal)
+        self.assertTrue(res)
+        res = BucketPolicy.match_principal("tester1", principal)
+        self.assertFalse(res)
+
+    def test_match_resource(self):
+        res = BucketPolicy.match_resource(["arn:aws:s3:::bucket/*"], "bucket", "object")
+        self.assertTrue(res)
+        res = BucketPolicy.match_resource(["arn:aws:s3:::bucket/*"], "invalid", "object")
+        self.assertFalse(res)
 
 
 if __name__ == '__main__':
