@@ -44,6 +44,7 @@ http://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html
 from functools import partial
 
 import six
+import os
 
 from swift.common.utils import json
 
@@ -859,7 +860,7 @@ class BucketPolicy:
             raise AttributeError
         return result
 
-    def check_permission(self, user_id, owner_id, method, bucket, key=None, req_source_ip=None):
+    def check_permission(self, user_id, owner_id, method, bucket, key=None, query=None, req_source_ip=None):
         """
 
         @param user_id:
@@ -876,7 +877,7 @@ class BucketPolicy:
         except AccessDenied:
             pass
         resource = "object" if key else "container"
-        user_action = BucketPolicy.user_action(resource, method)
+        user_action = BucketPolicy.user_action(resource, method, query)
         print(user_action)
         for statement in self.statement:
             if statement.effect == "Allow":
@@ -915,26 +916,10 @@ class BucketPolicy:
             raise AccessDenied()
 
     @staticmethod
-    def user_action(resource, method, subresource=None):
-        """
-
-        @param resource:
-        @param method:
-        @param subresource
-        @return:
-        """
-        if resource == "object":
-            action = "s3:{}{}".format(method.capitalize(), resource.capitalize())
-        else:
-            # refer @BucketPolicyActions to see how mapping is being done
-            if method == "GET":
-                method = "List"
-            elif method == "PUT":
-                method = "Create"
-            action = "s3:{}{}".format(method.capitalize(), "Bucket")
-        if subresource:
-            action = "{}{}".format(action, subresource.capitalize())
-        return action
+    def user_action(resource, method, query=None):
+        if query:
+            return BucketPolicyActionsMap[(method, resource, query)]
+        return BucketPolicyActionsMap[(method, resource)]
 
     @staticmethod
     def match_action(action, user_action):
@@ -984,21 +969,26 @@ class BucketPolicy:
         @param obj:
         @return:
         """
+        def match(_resource):
+            part = _resource.partition(container)
+            if part[1] == container:
+                if not obj:
+                    if part[2] in ['/*', '/', '']:
+                        return True
+                else:
+                    head, tail = os.path.split(obj)
+                    if "/*" == part[2] or\
+                            "/{}".format(obj) == part[2] or\
+                            "/{}/*".format(head) == part[2]:
+                        return True
+            return False
+
         if isinstance(resource, list):
             for item in resource:
-                part = item.partition(container)
-                if part[1] == container:
-                    if obj and ("/*" == part[2]  or "/{}".format(obj) == part[2]):
-                        return True
-                    elif not obj:
-                        return True
+                if match(item):
+                    return True
         else:
-            part = resource.partition(container)
-            if part[1] == container:
-                if obj and ("/*" == part[2]  or "/{}".format(obj) == part[2]):
-                    return True
-                elif not obj:
-                    return True
+            return match(resource)
 
         return False
 
@@ -1011,30 +1001,25 @@ ACLBucketOwnerRead = canned_acl['bucket-owner-read']
 ACLBucketOwnerFullControl = canned_acl['bucket-owner-full-control']
 ACLLogDeliveryWrite = canned_acl['log-delivery-write']
 
-BucketPolicyActions = [
-    "s3:AbortMultipartUpload",
-    "s3:CreateBucket",
-    "s3:DeleteBucket",
-    "s3:DeleteBucketPolicy",
-    "s3:DeleteObject",
-    "s3:DeleteObjectVersion",
-    "s3:GetBucketAcl",
-    "s3:GetBucketLocation",
-    "s3:GetBucketPolicy",
-    "s3:GetBucketVersioning",
-    "s3:GetObject",
-    "s3:GetObjectAcl",
-    "s3:GetObjectVersion",
-    "s3:HeadBucket",
-    "s3:ListBucket",
-    "s3:ListAllMyBuckets"
-    "s3:ListBucketMultipartUploads",
-    "s3:ListBucketVersions",
-    "s3:ListMultipartUploadParts",
-    "s3:PutBucketPolicy",
-    "s3:PutBucketVersioning",
-    "s3:PutObject",
-    "s3:PutObjectAcl"
-]
+BucketPolicyActionsMap = {
+    ("HEAD", "container"): "s3:HeadBucket",
+    ("GET", "container"): "s3:ListBucket",
+    ("GET", "container", "acl"): "s3:GetBucketAcl",
+    ("GET", "container", "policy"): "s3:GetBucketPolicy",
+    ("GET", "container", "versioning"): "s3:GetBucketVersioning",
+    ("GET", "container", "uploads"): "s3:ListBucketMultipartUploads",
+    ("PUT", "container"): "s3:CreateBucket",
+    ("PUT", "container", "acl"): "s3:PutBucketAcl",
+    ("PUT", "container", "policy"): "s3:PutBucketPolicy",
+    ("PUT", "container", "versioning"): "s3:PutBucketVersioning",
+    ("DELETE", "container"): "s3:DeleteBucket",
+    ("DELETE", "container", "policy"): "s3:DeleteBucketPolicy",
+    ("GET", "object"): "s3:GetObject",
+    ("GET", "object", "acl"): "s3:GetObjectAcl",
+    ("GET", "object", "uploadId"): "s3:ListMultipartUploadParts",
+    ("PUT", "object"): "s3:PutObject",
+    ("PUT", "object", "acl"): "s3:PutObjectAcl",
+    ("DELETE", "object"): "s3:DeleteObject",
+}
 
 

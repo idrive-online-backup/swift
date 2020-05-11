@@ -268,8 +268,18 @@ class BucketPolicyHandler(BaseAclHandler):
             self.logger.debug("resource %s", resource)
             self.logger.debug("self.obj %s", self.obj)
             if policy:
+                query = None
+                if 'acl' in self.req.params:
+                    query = "acl"
+                elif 'policy' in self.req.params:
+                    query = "policy"
+                elif 'versioning' in self.req.params:
+                    query = "versioning"
+                elif 'uploads' in self.req.params:
+                    query = "uploads"
+                self.logger.debug("subresource %s", query)
                 policy.check_permission(self.user_id, acl.owner.id,
-                                        self.req.method, self.container, self.obj)
+                                        self.req.method, self.container, self.obj, query)
             else:
                 if resource == 'object':
                     version_id = self.req.params.get('versionId')

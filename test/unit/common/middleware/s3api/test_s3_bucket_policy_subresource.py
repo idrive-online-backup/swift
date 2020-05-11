@@ -215,7 +215,7 @@ class TestS3ApiBucketPolicySubResource(unittest.TestCase):
         self.assertEqual("s3:GetObject", resp)
         resp = BucketPolicy.user_action("object", "PUT")
         self.assertEqual("s3:PutObject", resp)
-        resp = BucketPolicy.user_action("object", "PUT", "ACL")
+        resp = BucketPolicy.user_action("object", "PUT", "acl")
         self.assertEqual("s3:PutObjectAcl", resp)
         resp = BucketPolicy.user_action("container", "PUT")
         self.assertEqual("s3:CreateBucket", resp)
@@ -223,8 +223,16 @@ class TestS3ApiBucketPolicySubResource(unittest.TestCase):
         self.assertEqual("s3:ListBucket", resp)
         resp = BucketPolicy.user_action("container", "DELETE")
         self.assertEqual("s3:DeleteBucket", resp)
-        resp = BucketPolicy.user_action("container", "GET", "ACL")
-        self.assertEqual("s3:ListBucketAcl", resp)
+        resp = BucketPolicy.user_action("container", "GET", "acl")
+        self.assertEqual("s3:GetBucketAcl", resp)
+        resp = BucketPolicy.user_action("container", "GET", "policy")
+        self.assertEqual("s3:GetBucketPolicy", resp)
+        resp = BucketPolicy.user_action("container", "PUT", "policy")
+        self.assertEqual("s3:PutBucketPolicy", resp)
+        resp = BucketPolicy.user_action("container", "GET", "uploads")
+        self.assertEqual("s3:ListBucketMultipartUploads", resp)
+        resp = BucketPolicy.user_action("object", "GET", "uploadId")
+        self.assertEqual("s3:ListMultipartUploadParts", resp)
 
     def check_owner(self, bucket_policy, user_id, owner_id):
         try:

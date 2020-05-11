@@ -296,7 +296,7 @@ class TestS3BucketPolicy(S3ApiBase):
                     },
                     "Action": ["s3:DeleteObject"],
                     "Resource": [
-                        "arn:aws:s3:::{}/*".format(self.bucket)
+                        "arn:aws:s3:::{}/{}".format(self.bucket, obj)
                     ]
                 }
             ]
