@@ -878,16 +878,12 @@ class BucketPolicy:
             pass
         resource = "object" if key else "container"
         user_action = BucketPolicy.user_action(resource, method, query)
-        print(user_action)
         for statement in self.statement:
             if statement.effect == "Allow":
                 principal = statement.principal
                 resource = statement.resource
                 action = statement.action
                 condition = statement.condition
-                print(BucketPolicy.match_principal(user_id, principal))
-                print(BucketPolicy.match_resource(resource, bucket, key))
-                print(user_action in action)
                 if BucketPolicy.match_principal(user_id, principal) \
                         and BucketPolicy.match_resource(resource, bucket, key) \
                         and user_action in action :

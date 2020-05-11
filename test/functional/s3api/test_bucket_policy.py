@@ -310,7 +310,6 @@ class TestS3BucketPolicy(S3ApiBase):
         self.assertEqual(status, 204)
 
 
-
 class TestS3AclSigV4(TestS3BucketPolicy):
     @classmethod
     def setUpClass(cls):

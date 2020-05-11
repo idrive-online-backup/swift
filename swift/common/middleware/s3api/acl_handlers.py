@@ -60,7 +60,6 @@ import json
 
 
 def get_acl_handler(controller_name):
-    print(controller_name)
     for base_klass in [BucketPolicyHandler, MultiUploadAclHandler]:
         # pylint: disable-msg=E1101
         for handler in base_klass.__subclasses__():
