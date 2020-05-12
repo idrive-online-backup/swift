@@ -877,7 +877,11 @@ class BucketPolicy:
         except AccessDenied:
             pass
         resource = "object" if key else "container"
-        user_action = BucketPolicy.user_action(resource, method, query)
+        try:
+            user_action = BucketPolicy.user_action(resource, method, query)
+        except KeyError:
+            # TODO decide what to do when action is not a listed one
+            pass
         for statement in self.statement:
             if statement.effect == "Allow":
                 principal = statement.principal
@@ -913,6 +917,13 @@ class BucketPolicy:
 
     @staticmethod
     def user_action(resource, method, query=None):
+        """
+
+        @param resource:
+        @param method:
+        @param query:
+        @return:
+        """
         if query:
             return BucketPolicyActionsMap[(method, resource, query)]
         return BucketPolicyActionsMap[(method, resource)]
@@ -997,6 +1008,7 @@ ACLBucketOwnerRead = canned_acl['bucket-owner-read']
 ACLBucketOwnerFullControl = canned_acl['bucket-owner-full-control']
 ACLLogDeliveryWrite = canned_acl['log-delivery-write']
 
+# refer https://docs.aws.amazon.com/IAM/latest/UserGuide/list_amazons3.html
 BucketPolicyActionsMap = {
     ("HEAD", "container"): "s3:HeadBucket",
     ("GET", "container"): "s3:ListBucket",
@@ -1004,6 +1016,7 @@ BucketPolicyActionsMap = {
     ("GET", "container", "policy"): "s3:GetBucketPolicy",
     ("GET", "container", "versioning"): "s3:GetBucketVersioning",
     ("GET", "container", "uploads"): "s3:ListBucketMultipartUploads",
+    ("GET", "container", "versions"): "s3:ListBucketVersions",
     ("PUT", "container"): "s3:CreateBucket",
     ("PUT", "container", "acl"): "s3:PutBucketAcl",
     ("PUT", "container", "policy"): "s3:PutBucketPolicy",
@@ -1016,6 +1029,7 @@ BucketPolicyActionsMap = {
     ("PUT", "object"): "s3:PutObject",
     ("PUT", "object", "acl"): "s3:PutObjectAcl",
     ("DELETE", "object"): "s3:DeleteObject",
+    ('DELETE', 'object', 'uploadId'): "s3:AbortMultipartUpload"
 }
 
 

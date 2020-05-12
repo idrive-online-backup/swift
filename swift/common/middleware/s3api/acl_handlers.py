@@ -276,6 +276,10 @@ class BucketPolicyHandler(BaseAclHandler):
                     query = "versioning"
                 elif 'uploads' in self.req.params:
                     query = "uploads"
+                elif 'uploadId' in self.req.params:
+                    query = "uploadId"
+                elif 'versions' in self.req.params:
+                    query = "versions"
                 self.logger.debug("subresource %s", query)
                 policy.check_permission(self.user_id, acl.owner.id,
                                         self.req.method, self.container, self.obj, query)
