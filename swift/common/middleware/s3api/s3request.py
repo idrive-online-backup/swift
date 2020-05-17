@@ -55,7 +55,7 @@ from swift.common.middleware.s3api.s3response import AccessDenied, \
     MissingContentLength, InvalidStorageClass, S3NotImplemented, InvalidURI, \
     MalformedXML, InvalidRequest, RequestTimeout, InvalidBucketName, \
     BadDigest, AuthorizationHeaderMalformed, SlowDown, \
-    AuthorizationQueryParametersError, ServiceUnavailable
+    AuthorizationQueryParametersError, ServiceUnavailable, MalformedJson
 from swift.common.middleware.s3api.exception import NotS3Request, \
     BadSwiftRequest
 from swift.common.middleware.s3api.utils import utf8encode, \
@@ -845,6 +845,28 @@ class S3Request(swob.Request):
 
     def xml(self, max_length):
         """
+
+        @param max_length:
+        @return:
+        """
+        try:
+           return self.constrained_body(max_length)
+        except Exception:
+            raise MalformedXML
+
+    def json(self, max_length):
+        """
+
+        @param max_length:
+        @return:
+        """
+        try:
+            return  self.constrained_body(max_length)
+        except Exception:
+            raise MalformedJson
+
+    def constrained_body(self, max_length):
+        """
         Similar to swob.Request.body, but it checks the content length before
         creating a body string.
         """
@@ -857,7 +879,7 @@ class S3Request(swob.Request):
 
         ml = self.message_length()
         if ml and ml > max_length:
-            raise MalformedXML()
+            raise
 
         if te or ml:
             # Limit the read similar to how SLO handles manifests

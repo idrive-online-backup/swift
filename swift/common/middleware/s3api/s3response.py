@@ -706,3 +706,8 @@ class NoSuchBucketPolicy (ErrorResponse):
 class MalformedPolicy (ErrorResponse):
     _status = '400 Bad Request'
     _msg = 'This policy contains invalid Json'
+
+class MalformedJson (ErrorResponse):
+    _status = '400 Bad Request'
+    _msg = 'The Json you provided was not well-formed or did not validate ' \
+           'against our published schema'

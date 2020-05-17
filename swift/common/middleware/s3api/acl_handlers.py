@@ -426,7 +426,7 @@ class S3BucketPolicyHandler(BucketPolicyHandler):
     def POST(self, app):
         resp = self._handle_acl(app, 'HEAD')
         if self.req.method == "PUT":
-            policy_body = self.req.xml(ACL.max_xml_length)
+            policy_body = self.req.json(BucketPolicy.max_json_length)
             if policy_body:
                 try:
                     bucket_policy = self.get_bucket_policy(policy_body)

@@ -798,6 +798,9 @@ class Statement:
 
 
 class BucketPolicy:
+
+    max_json_length = 200 * 1024
+
     def __init__(self, id, version, statement, s3_acl=False, allow_no_owner=False):
         """
 
