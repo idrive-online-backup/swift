@@ -13,11 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from six.moves.urllib.parse import quote
 from swift.common.utils import public
 
 from swift.common.middleware.s3api.controllers.base import Controller, S3NotImplemented
-from swift.common.middleware.s3api.s3response import NoSuchTagSetError
+from swift.common.middleware.s3api.s3response import HTTPOk
+from swift.common.middleware.s3api.etree import Element, tostring, \
+    SubElement
 
 
 class ObjectTaggingController(Controller):
@@ -34,7 +35,11 @@ class ObjectTaggingController(Controller):
         """
         Handles GET Object tagging.
         """
-        raise NoSuchTagSetError
+        elem = Element('Tagging')
+        SubElement(elem, 'TagSet')
+        body = tostring(elem)
+
+        return HTTPOk(body=body, content_type=None)
 
     @public
     def PUT(self, req):

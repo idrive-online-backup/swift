@@ -31,7 +31,6 @@ from swift.common.middleware.s3api.controllers.logging import \
     LoggingStatusController
 from swift.common.middleware.s3api.controllers.versioning import \
     VersioningController
-
 from swift.common.middleware.s3api.controllers.tagging import \
     ObjectTaggingController
 
