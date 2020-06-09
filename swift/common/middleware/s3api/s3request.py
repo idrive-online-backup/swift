@@ -45,7 +45,8 @@ from swift.common.middleware.s3api.controllers import ServiceController, \
     ObjectController, AclController, MultiObjectDeleteController, \
     LocationController, LoggingStatusController, PartController, \
     UploadController, UploadsController, VersioningController, \
-    UnsupportedController, S3AclController, BucketController
+    UnsupportedController, S3AclController, BucketController, \
+    ObjectTaggingController
 from swift.common.middleware.s3api.s3response import AccessDenied, \
     InvalidArgument, InvalidDigest, BucketAlreadyOwnedByYou, \
     RequestTimeTooSkewed, S3Response, SignatureDoesNotMatch, \
@@ -1027,7 +1028,7 @@ class S3Request(swob.Request):
         if 'versioning' in self.params:
             return VersioningController
         if 'tagging' in self.params:
-            return VersioningController
+            return ObjectTaggingController
 
         unsupported = ('notification', 'policy', 'requestPayment', 'torrent',
                        'website', 'cors', 'tagging', 'restore')

@@ -32,6 +32,9 @@ from swift.common.middleware.s3api.controllers.logging import \
 from swift.common.middleware.s3api.controllers.versioning import \
     VersioningController
 
+from swift.common.middleware.s3api.controllers.tagging import \
+    ObjectTaggingController
+
 __all__ = [
     'Controller',
     'ServiceController',
@@ -47,6 +50,7 @@ __all__ = [
     'LocationController',
     'LoggingStatusController',
     'VersioningController',
+    'ObjectTaggingController',
 
     'UnsupportedController',
 ]

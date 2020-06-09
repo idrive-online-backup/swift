@@ -18,30 +18,34 @@ from swift.common.utils import public
 
 from swift.common.middleware.s3api.controllers.base import Controller, S3NotImplemented
 from swift.common.middleware.s3api.s3response import NoSuchTagSetError
-from swift.common.middleware.s3api.etree import tostring
 
 
-class S3AclController(Controller):
+class ObjectTaggingController(Controller):
     """
     Handles the following APIs:
 
-    * GET Bucket acl
-    * PUT Bucket acl
-    * GET Object acl
-    * PUT Object acl
+    * GET Object tagging
+    * PUT Object tagging
+    * DELETE Object tagging
 
-    Those APIs are logged as ACL operations in the S3 server log.
     """
     @public
     def GET(self, req):
         """
-        Handles GET Bucket acl and GET Object acl.
+        Handles GET Object tagging.
         """
         raise NoSuchTagSetError
 
     @public
     def PUT(self, req):
         """
-        Handles PUT Bucket acl and PUT Object acl.
+        Handles PUT Object tagging.
+        """
+        raise S3NotImplemented('Object tagging is not supported.')
+
+    @public
+    def DELETE(self, req):
+        """
+        Handles DELETE Object tagging.
         """
         raise S3NotImplemented('Object tagging is not supported.')
