@@ -1026,6 +1026,8 @@ class S3Request(swob.Request):
             return UploadsController
         if 'versioning' in self.params:
             return VersioningController
+        if 'tagging' in self.params:
+            return VersioningController
 
         unsupported = ('notification', 'policy', 'requestPayment', 'torrent',
                        'website', 'cors', 'tagging', 'restore')
