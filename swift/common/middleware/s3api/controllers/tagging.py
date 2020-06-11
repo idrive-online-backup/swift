@@ -21,19 +21,19 @@ from swift.common.middleware.s3api.etree import Element, tostring, \
     SubElement
 
 
-class ObjectTaggingController(Controller):
+class TaggingController(Controller):
     """
     Handles the following APIs:
 
-    * GET Object tagging
-    * PUT Object tagging
-    * DELETE Object tagging
+    * GET Bucket and Object tagging
+    * PUT Bucket and Object tagging
+    * DELETE Bucket and Object tagging
 
     """
     @public
     def GET(self, req):
         """
-        Handles GET Object tagging.
+        Handles GET Bucket and Object tagging.
         """
         elem = Element('Tagging')
         SubElement(elem, 'TagSet')
@@ -44,13 +44,13 @@ class ObjectTaggingController(Controller):
     @public
     def PUT(self, req):
         """
-        Handles PUT Object tagging.
+        Handles PUT Bucket and Object tagging.
         """
         raise S3NotImplemented('Object tagging is not supported.')
 
     @public
     def DELETE(self, req):
         """
-        Handles DELETE Object tagging.
+        Handles DELETE Bucket and Object tagging.
         """
         raise S3NotImplemented('Object tagging is not supported.')

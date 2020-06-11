@@ -705,7 +705,12 @@ class TestS3ApiMiddleware(S3ApiTestCase):
         self._test_unsupported_resource('cors')
 
     def test_tagging(self):
-        self._test_unsupported_resource('tagging')
+        req = Request.blank('/bucket?tagging',
+                            environ={'REQUEST_METHOD': 'GET'},
+                            headers={'Authorization': 'AWS test:tester:hmac',
+                                     'Date': self.get_date_header()})
+        status, headers, body = self.call_s3api(req)
+        self.assertEqual(status.split()[0], '200')
 
     def test_restore(self):
         self._test_unsupported_resource('restore')
