@@ -117,6 +117,7 @@ def _header_acl_property(resource):
     return property(getter, setter, deleter,
                     doc='Get and set the %s acl property' % resource)
 
+
 def _header_bucket_policy_property():
     """
     Set and retrieve the bucket policy in self.headers
@@ -850,7 +851,7 @@ class S3Request(swob.Request):
         @return:
         """
         try:
-           return self.constrained_body(max_length)
+            return self.constrained_body(max_length)
         except Exception:
             raise MalformedXML
 
@@ -861,7 +862,7 @@ class S3Request(swob.Request):
         @return:
         """
         try:
-            return  self.constrained_body(max_length)
+            return self.constrained_body(max_length)
         except Exception:
             raise MalformedJson
 
@@ -1595,7 +1596,8 @@ class S3AclRequest(S3Request):
 
         resp.bucket_acl = decode_acl(
             'container', resp.sysmeta_headers, self.allow_no_owner)
-        resp.bucket_policy = decode_bucket_policy(resp.sysmeta_headers, self.allow_no_owner)
+        resp.bucket_policy = decode_bucket_policy(resp.sysmeta_headers,
+                                                  self.allow_no_owner)
         resp.object_acl = decode_acl(
             'object', resp.sysmeta_headers, self.allow_no_owner)
 

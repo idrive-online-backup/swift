@@ -75,11 +75,10 @@ class TestS3BucketPolicy(S3ApiBase):
             ]
         }
 
-
         # PUT Bucket Policy
         status, headers, body = \
-            self.conn.make_request('PUT', self.bucket, body=json.dumps(policy_dict),
-                                   query=query)
+            self.conn.make_request('PUT', self.bucket,
+                                   body=json.dumps(policy_dict), query=query)
         self.assertEqual(status, 200)
         self.assertCommonResponseHeaders(headers)
         self.assertEqual(headers['content-length'], '0')
@@ -121,7 +120,8 @@ class TestS3BucketPolicy(S3ApiBase):
             "Version": "2020-04-06",
         }
         status, headers, body = \
-            self.conn.make_request('PUT', self.bucket, body=json.dumps(malformed_policy),
+            self.conn.make_request('PUT', self.bucket,
+                                   body=json.dumps(malformed_policy),
                                    query='policy')
         self.assertEqual(get_error_code(body), 'MalformedPolicy')
 
@@ -129,7 +129,6 @@ class TestS3BucketPolicy(S3ApiBase):
             self.conn.make_request('PUT', self.bucket,
                                    query='policy')
         self.assertEqual(get_error_code(body), 'MissingRequestBodyError')
-
 
     def test_get_bucket_policy_error(self):
         aws_error_conn = Connection(aws_secret_key='invalid')
@@ -175,7 +174,8 @@ class TestS3BucketPolicy(S3ApiBase):
             conn2.list_objects(Bucket=self.bucket)
         self.assertEqual(
             ctx.exception.response['ResponseMetadata']['HTTPStatusCode'], 403)
-        self.assertEqual(ctx.exception.response['Error']['Code'], 'AccessDenied')
+        self.assertEqual(ctx.exception.response['Error']['Code'],
+                         'AccessDenied')
         policy_dict = {
             "Version": "2020-04-06",
             "Statement": [
@@ -192,7 +192,9 @@ class TestS3BucketPolicy(S3ApiBase):
             ]
         }
         status, headers, body = \
-            self.conn.make_request('PUT', self.bucket, body=json.dumps(policy_dict),
+            self.conn.make_request('PUT',
+                                   self.bucket,
+                                   body=json.dumps(policy_dict),
                                    query="policy")
         self.assertEqual(status, 200)
         resp = conn2.list_objects(Bucket=self.bucket)
@@ -229,7 +231,9 @@ class TestS3BucketPolicy(S3ApiBase):
             ]
         }
         status, headers, body = \
-            self.conn.make_request('PUT', self.bucket, body=json.dumps(policy_dict),
+            self.conn.make_request('PUT',
+                                   self.bucket,
+                                   body=json.dumps(policy_dict),
                                    query="policy")
         self.assertEqual(status, 200)
         status, headers, body = \
@@ -267,7 +271,8 @@ class TestS3BucketPolicy(S3ApiBase):
             ]
         }
         status, headers, body = \
-            self.conn.make_request('PUT', self.bucket, body=json.dumps(policy_dict),
+            self.conn.make_request('PUT', self.bucket,
+                                   body=json.dumps(policy_dict),
                                    query="policy")
         self.assertEqual(status, 200)
         status, headers, body = \
@@ -302,7 +307,8 @@ class TestS3BucketPolicy(S3ApiBase):
             ]
         }
         status, headers, body = \
-            self.conn.make_request('PUT', self.bucket, body=json.dumps(policy_dict),
+            self.conn.make_request('PUT', self.bucket,
+                                   body=json.dumps(policy_dict),
                                    query="policy")
         self.assertEqual(status, 200)
         status, headers, body = \

@@ -134,7 +134,6 @@ def encode_bucket_policy(policy):
     Given a BucketPolicy instance, this method returns HTTP
     headers, which can be used for Swift metadata.
     """
-    header_value = {}
     headers = {}
     key = sysmeta_header('bucket', 'policy')
     headers[key] = json.dumps(policy.to_dict())
@@ -616,8 +615,7 @@ def to_class(c, x):
     return x.to_dict()
 
 
-
-class IPAddress:
+class IPAddress(object):
     def __init__(self, aws_source_ip):
         """
 
@@ -645,7 +643,7 @@ class IPAddress:
         return result
 
 
-class Condition:
+class Condition(object):
     def __init__(self, ip_address, not_ip_address):
         """
 
@@ -677,7 +675,7 @@ class Condition:
         return result
 
 
-class Principal:
+class Principal(object):
     def __init__(self, aws):
         """
 
@@ -711,8 +709,9 @@ class Principal:
         return result
 
 
-class Statement:
-    def __init__(self, sid, effect, principal, action, resource, condition=None):
+class Statement(object):
+    def __init__(self, sid, effect, principal, action, resource,
+                 condition=None):
         """
 
         @param sid:
@@ -797,11 +796,12 @@ class Statement:
         return result
 
 
-class BucketPolicy:
+class BucketPolicy(object):
 
     max_json_length = 200 * 1024
 
-    def __init__(self, id, version, statement, s3_acl=False, allow_no_owner=False):
+    def __init__(self, id, version, statement, s3_acl=False,
+                 allow_no_owner=False):
         """
 
         @param id:
@@ -832,7 +832,7 @@ class BucketPolicy:
             if obj.get(u"Version"):
                 version = from_str(obj.get(u"Version"))
             statement = from_list(Statement.from_dict, obj.get(u"Statement"))
-        except Exception as ex:
+        except Exception:
             raise AttributeError
         return BucketPolicy(id, version, statement, s3_acl, allow_no_owner)
 
@@ -859,18 +859,20 @@ class BucketPolicy:
                 result[u"Version"] = self.version
             result[u"Statement"] = from_list(lambda x: to_class(Statement, x),
                                              self.statement)
-        except Exception as ex:
+        except Exception:
             raise AttributeError
         return result
 
-    def check_permission(self, user_id, owner_id, method, bucket, key=None, query=None, req_source_ip=None):
+    def check_permission(self, user_id, owner_id, method, bucket,
+                         key=None, query=None, req_source_ip=None):
         """
 
         @param user_id:
         @param owner_id:
         @param method:
-        @param container:
-        @param obj:
+        @param bucket:
+        @param key:
+        @param query:
         @param req_source_ip:
         @return:
         """
@@ -890,10 +892,9 @@ class BucketPolicy:
                 principal = statement.principal
                 resource = statement.resource
                 action = statement.action
-                condition = statement.condition
-                if BucketPolicy.match_principal(user_id, principal) \
-                        and BucketPolicy.match_resource(resource, bucket, key) \
-                        and user_action in action :
+                if BucketPolicy.match_principal(user_id, principal) and \
+                        BucketPolicy.match_resource(resource, bucket, key) \
+                        and user_action in action:
                     return
         raise AccessDenied
 
@@ -1034,5 +1035,3 @@ BucketPolicyActionsMap = {
     ("DELETE", "object"): "s3:DeleteObject",
     ('DELETE', 'object', 'uploadId'): "s3:AbortMultipartUpload"
 }
-
-

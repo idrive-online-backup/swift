@@ -699,13 +699,16 @@ class UserKeyMustBeSpecified(ErrorResponse):
     _msg = 'The bucket POST must contain the specified field name. If it is ' \
            'specified, please check the order of the fields.'
 
+
 class NoSuchBucketPolicy (ErrorResponse):
     _status = '404 Not Found'
     _msg = 'The bucket policy does not exist'
 
+
 class MalformedPolicy (ErrorResponse):
     _status = '400 Bad Request'
     _msg = 'This policy contains invalid Json'
+
 
 class MalformedJson (ErrorResponse):
     _status = '400 Bad Request'

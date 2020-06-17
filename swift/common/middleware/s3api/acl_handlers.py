@@ -49,7 +49,8 @@ Example::
   the end of method.
 
 """
-from swift.common.middleware.s3api.subresource import ACL, Owner, encode_acl, BucketPolicy
+from swift.common.middleware.s3api.subresource import ACL, Owner, encode_acl, \
+    BucketPolicy
 from swift.common.middleware.s3api.s3response import MissingSecurityHeader, \
     MalformedACLError, UnexpectedContent, AccessDenied, NoSuchBucketPolicy, \
     MissingRequestBodyError, MalformedPolicy
@@ -65,8 +66,8 @@ def get_acl_handler(controller_name):
         # pylint: disable-msg=E1101
         for handler in base_klass.__subclasses__():
             handler_suffix_len = len('AclHandler') \
-                if not handler.__name__ == 'S3AclHandler' and \
-                   not handler.__name__ == 'S3BucketPolicyHandler' else len('Handler')
+                if not handler.__name__ == 'S3AclHandler' and not \
+                handler.__name__ == 'S3BucketPolicyHandler' else len('Handler')
             if handler.__name__[:-handler_suffix_len] == controller_name:
                 return handler
     return BucketPolicyHandler
@@ -144,12 +145,7 @@ class BaseAclHandler(object):
         elif resource == 'container':
             resp = self.req.get_acl_response(app, 'HEAD',
                                              container, '')
-            self.logger.debug("resp %s", resp)
             acl = resp.bucket_acl
-            self.logger.debug("setting bucket policy in response")
-            if hasattr(resp, 'bucket_policy'):
-                policy = resp.bucket_policy
-                #TODO: use policy to vallidate ACL
 
         try:
             acl.check_permission(self.user_id, permission)
@@ -193,16 +189,15 @@ class BaseAclHandler(object):
 class BucketPolicyHandler(BaseAclHandler):
 
     def __init__(self, req, logger, container=None, obj=None, headers=None):
-        super(BucketPolicyHandler, self).__init__(req, logger, container, obj, headers)
+        super(BucketPolicyHandler, self).\
+            __init__(req, logger, container, obj, headers)
 
     def get_bucket_policy(self, body):
         """
         Get BucketPolicy instance from json body.
         """
-        self.logger.debug("body %s", body)
-        self.logger.debug("body %s", type(body))
+
         try:
-            import json
             policy = BucketPolicy.from_dict(json.loads(body))
         except Exception as e:
             self.logger.error(e)
@@ -243,30 +238,13 @@ class BucketPolicyHandler(BaseAclHandler):
             self.logger.debug(
                 '%s %s %s %s' % (container, obj, sw_method, headers))
             raise Exception('No permission to be checked exists')
-        #
-        # if resource == 'object':
-        #     version_id = self.req.params.get('versionId')
-        #     if version_id is None:
-        #         query = {}
-        #     else:
-        #         query = {'version-id': version_id}
-        #     resp = self.req.get_acl_response(app, 'HEAD',
-        #                                      container, obj,
-        #                                      headers, query=query)
-        #     acl = resp.object_acl
-        # elif resource == 'container':
-        #     pass
+
         resp = self.req.get_acl_response(app, 'HEAD',
                                          container, '')
         acl = resp.bucket_acl
         policy = resp.bucket_policy
 
         try:
-            self.logger.debug("self.user_id %s", self.user_id)
-            self.logger.debug("acl.owner %s", acl.owner.id)
-            self.logger.debug("policy %s", policy)
-            self.logger.debug("resource %s", resource)
-            self.logger.debug("self.obj %s", self.obj)
             if policy:
                 query = None
                 if 'acl' in self.req.params:
@@ -281,9 +259,9 @@ class BucketPolicyHandler(BaseAclHandler):
                     query = "uploadId"
                 elif 'versions' in self.req.params:
                     query = "versions"
-                self.logger.debug("subresource %s", query)
                 policy.check_permission(self.user_id, acl.owner.id,
-                                        self.req.method, self.container, self.obj, query)
+                                        self.req.method, self.container,
+                                        self.obj, query)
             else:
                 if resource == 'object':
                     version_id = self.req.params.get('versionId')
@@ -297,14 +275,12 @@ class BucketPolicyHandler(BaseAclHandler):
                     acl = resp.object_acl
                 acl.check_permission(self.user_id, permission)
         except Exception as e:
-            self.logger.debug(acl)
             self.logger.debug('permission denined: %s %s %s' %
                               (e, self.user_id, permission))
             raise
 
         if sw_method == 'HEAD':
             return resp
-
 
 
 class BucketAclHandler(BucketPolicyHandler):

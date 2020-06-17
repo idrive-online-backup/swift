@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from six.moves.urllib.parse import quote
 from swift.common.utils import public
 import json
 
@@ -53,7 +52,7 @@ class S3BucketPolicyController(Controller):
         """
         try:
             req.get_response(self.app, 'POST')
-        except AttributeError as e:
+        except AttributeError:
             raise MalformedPolicy
 
         return HTTPOk()
@@ -65,7 +64,7 @@ class S3BucketPolicyController(Controller):
         """
         try:
             req.get_response(self.app, 'POST')
-        except NoSuchBucketPolicy as e:
+        except NoSuchBucketPolicy:
             raise NoSuchBucketPolicy
 
         return HTTPOk()
