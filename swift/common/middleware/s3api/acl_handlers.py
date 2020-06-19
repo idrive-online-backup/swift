@@ -53,7 +53,7 @@ from swift.common.middleware.s3api.subresource import ACL, Owner, encode_acl, \
     BucketPolicy
 from swift.common.middleware.s3api.s3response import MissingSecurityHeader, \
     MalformedACLError, UnexpectedContent, AccessDenied, NoSuchBucketPolicy, \
-    MissingRequestBodyError, MalformedPolicy
+    MissingRequestBodyError
 from swift.common.middleware.s3api.etree import fromstring, XMLSyntaxError, \
     DocumentInvalid
 from swift.common.middleware.s3api.utils import MULTIUPLOAD_SUFFIX, \
@@ -407,7 +407,7 @@ class S3BucketPolicyHandler(BucketPolicyHandler):
                 try:
                     bucket_policy = self.get_bucket_policy(policy_body)
                 except ValueError:
-                    raise MalformedPolicy
+                    raise ValueError
                 self.req.bucket_policy = bucket_policy
             else:
                 raise MissingRequestBodyError

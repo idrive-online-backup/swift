@@ -102,7 +102,7 @@ class TestS3BucketPolicy(S3ApiBase):
         self.assertEqual(headers['content-length'], '0')
 
     def test_put_bucket_policy_error(self):
-        aws_error_conn = Connection(aws_secret_key='invalid')
+        aws_error_conn = Connection(tf.config['s3_access_key'], 'invalid')
         status, headers, body = \
             aws_error_conn.make_request('PUT', self.bucket, query='policy')
         self.assertEqual(get_error_code(body), 'SignatureDoesNotMatch')
@@ -131,7 +131,7 @@ class TestS3BucketPolicy(S3ApiBase):
         self.assertEqual(get_error_code(body), 'MissingRequestBodyError')
 
     def test_get_bucket_policy_error(self):
-        aws_error_conn = Connection(aws_secret_key='invalid')
+        aws_error_conn = Connection(tf.config['s3_access_key'], 'invalid')
         status, headers, body = \
             aws_error_conn.make_request('GET', self.bucket, query='policy')
         self.assertEqual(get_error_code(body), 'SignatureDoesNotMatch')
@@ -149,7 +149,7 @@ class TestS3BucketPolicy(S3ApiBase):
         self.assertEqual(get_error_code(body), 'NoSuchBucketPolicy')
 
     def test_delete_bucket_policy_error(self):
-        aws_error_conn = Connection(aws_secret_key='invalid')
+        aws_error_conn = Connection(tf.config['s3_access_key'], 'invalid')
         status, headers, body = \
             aws_error_conn.make_request('DELETE', self.bucket, query='policy')
         self.assertEqual(get_error_code(body), 'SignatureDoesNotMatch')

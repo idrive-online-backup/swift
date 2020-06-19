@@ -54,6 +54,8 @@ class S3BucketPolicyController(Controller):
             req.get_response(self.app, 'POST')
         except AttributeError:
             raise MalformedPolicy
+        except ValueError:
+            raise MalformedPolicy
 
         return HTTPOk()
 

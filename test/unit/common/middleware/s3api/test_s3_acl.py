@@ -25,7 +25,8 @@ from swift.common.utils import json
 
 from swift.common.middleware.s3api.etree import tostring, Element, SubElement
 from swift.common.middleware.s3api.subresource import ACL, ACLPrivate, User, \
-    encode_acl, AuthenticatedUsers, AllUsers, Owner, Grant, PERMISSIONS
+    encode_acl, AuthenticatedUsers, AllUsers, Owner, Grant, PERMISSIONS, \
+    Statement, Principal, BucketPolicy, encode_bucket_policy
 from test.unit.common.middleware.s3api.test_s3api import S3ApiTestCase
 from test.unit.common.middleware.s3api.exceptions import NotMethodException
 from test.unit.common.middleware.s3api import FakeSwift
@@ -116,7 +117,7 @@ def _make_xml(grantee):
     return tostring(elem)
 
 
-def generate_s3acl_environ(account, swift, owner):
+def generate_s3acl_environ(account, swift, owner, s3_bucket_policy=False):
 
     def gen_grant(permission):
         # generate Grant with a grantee named by "permission"
@@ -125,6 +126,12 @@ def generate_s3acl_environ(account, swift, owner):
 
     grants = [gen_grant(perm) for perm in PERMISSIONS]
     container_headers = _gen_test_headers(owner, grants)
+    if s3_bucket_policy:
+        stmt = Statement(None, "Allow", Principal("*"), "s3:GetObject",
+                         "arn:aws:s3:::bp-root/*", None)
+        bucket_policy = BucketPolicy(None, "2020-04-06", [stmt])
+        encoded_bucket_policy_headers = encode_bucket_policy(bucket_policy)
+        container_headers.update(encoded_bucket_policy_headers)
     object_headers = _gen_test_headers(owner, grants, 'object')
     object_body = 'hello'
     object_headers['Content-Length'] = len(object_body)
