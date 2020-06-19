@@ -127,6 +127,12 @@ class TestS3BucketPolicy(S3ApiBase):
 
         status, headers, body = \
             self.conn.make_request('PUT', self.bucket,
+                                   body='invalid',
+                                   query='policy')
+        self.assertEqual(get_error_code(body), 'MalformedPolicy')
+
+        status, headers, body = \
+            self.conn.make_request('PUT', self.bucket,
                                    query='policy')
         self.assertEqual(get_error_code(body), 'MissingRequestBodyError')
 
