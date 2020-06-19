@@ -46,7 +46,8 @@ from swift.common.middleware.s3api.controllers import ServiceController, \
     LocationController, LoggingStatusController, PartController, \
     UploadController, UploadsController, VersioningController, \
     UnsupportedController, S3AclController, BucketController, \
-    TaggingController
+    S3BucketPolicyController, TaggingController
+
 from swift.common.middleware.s3api.s3response import AccessDenied, \
     InvalidArgument, InvalidDigest, BucketAlreadyOwnedByYou, \
     RequestTimeTooSkewed, S3Response, SignatureDoesNotMatch, \
@@ -55,12 +56,13 @@ from swift.common.middleware.s3api.s3response import AccessDenied, \
     MissingContentLength, InvalidStorageClass, S3NotImplemented, InvalidURI, \
     MalformedXML, InvalidRequest, RequestTimeout, InvalidBucketName, \
     BadDigest, AuthorizationHeaderMalformed, SlowDown, \
-    AuthorizationQueryParametersError, ServiceUnavailable
+    AuthorizationQueryParametersError, ServiceUnavailable, MalformedJson
 from swift.common.middleware.s3api.exception import NotS3Request, \
     BadSwiftRequest
 from swift.common.middleware.s3api.utils import utf8encode, \
     S3Timestamp, mktime, MULTIUPLOAD_SUFFIX
-from swift.common.middleware.s3api.subresource import decode_acl, encode_acl
+from swift.common.middleware.s3api.subresource import decode_acl, encode_acl, \
+    decode_bucket_policy, encode_bucket_policy
 from swift.common.middleware.s3api.utils import sysmeta_header, \
     validate_bucket_name
 from swift.common.middleware.s3api.acl_utils import handle_acl_header
@@ -115,6 +117,24 @@ def _header_acl_property(resource):
 
     return property(getter, setter, deleter,
                     doc='Get and set the %s acl property' % resource)
+
+
+def _header_bucket_policy_property():
+    """
+    Set and retrieve the bucket policy in self.headers
+    """
+    def getter(self):
+        return getattr(self, '_%s' % "bucket")
+
+    def setter(self, value):
+        self.headers.update(encode_bucket_policy(value))
+        setattr(self, '_%s' % "bucket", value)
+
+    def deleter(self):
+        self.headers[sysmeta_header("bucket", 'policy')] = ''
+
+    return property(getter, setter, deleter,
+                    doc='Get and set the bucket bucket policy property')
 
 
 class HashingInput(object):
@@ -513,6 +533,7 @@ class S3Request(swob.Request):
 
     bucket_acl = _header_acl_property('container')
     object_acl = _header_acl_property('object')
+    bucket_policy = _header_bucket_policy_property()
 
     def __init__(self, env, app=None, slo_enabled=True, storage_domain='',
                  location='us-east-1', force_request_log=False,
@@ -826,6 +847,28 @@ class S3Request(swob.Request):
 
     def xml(self, max_length):
         """
+
+        @param max_length:
+        @return:
+        """
+        try:
+            return self.constrained_body(max_length)
+        except Exception:
+            raise MalformedXML
+
+    def json(self, max_length):
+        """
+
+        @param max_length:
+        @return:
+        """
+        try:
+            return self.constrained_body(max_length)
+        except Exception:
+            raise MalformedJson
+
+    def constrained_body(self, max_length):
+        """
         Similar to swob.Request.body, but it checks the content length before
         creating a body string.
         """
@@ -838,7 +881,7 @@ class S3Request(swob.Request):
 
         ml = self.message_length()
         if ml and ml > max_length:
-            raise MalformedXML()
+            raise
 
         if te or ml:
             # Limit the read similar to how SLO handles manifests
@@ -1493,6 +1536,8 @@ class S3AclRequest(S3Request):
     def controller(self):
         if 'acl' in self.params and not self.is_service_request:
             return S3AclController
+        elif 'policy' in self.params and not self.is_service_request:
+            return S3BucketPolicyController
         return super(S3AclRequest, self).controller
 
     def authenticate(self, app):
@@ -1551,8 +1596,11 @@ class S3AclRequest(S3Request):
 
         resp = self._get_response(
             app, method, container, obj, headers, body, query)
+
         resp.bucket_acl = decode_acl(
             'container', resp.sysmeta_headers, self.allow_no_owner)
+        resp.bucket_policy = decode_bucket_policy(resp.sysmeta_headers,
+                                                  self.allow_no_owner)
         resp.object_acl = decode_acl(
             'object', resp.sysmeta_headers, self.allow_no_owner)
 

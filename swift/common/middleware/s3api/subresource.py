@@ -44,6 +44,7 @@ http://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html
 from functools import partial
 
 import six
+import os
 
 from swift.common.utils import json
 
@@ -124,6 +125,37 @@ def decode_acl(resource, headers, allow_no_owner):
         return ACL(Owner(id, name), grants, True, allow_no_owner)
     except Exception as e:
         raise InvalidSubresource((resource, 'acl', value), e)
+
+
+def encode_bucket_policy(policy):
+    """
+    Encode a BucketPolicy instance to Swift metadata.
+
+    Given a BucketPolicy instance, this method returns HTTP
+    headers, which can be used for Swift metadata.
+    """
+    headers = {}
+    key = sysmeta_header('bucket', 'policy')
+    headers[key] = json.dumps(policy.to_dict())
+
+    return headers
+
+
+def decode_bucket_policy(headers, allow_no_owner):
+    """
+    Decode Swift metadata to a BucketPolicy instance.
+
+    Given a resource type and HTTP headers, this method returns a BucketPolicy
+    instance.
+    """
+    value = ''
+
+    key = sysmeta_header('bucket', 'policy')
+    if key in headers:
+        value = headers[key]
+    if value == '':
+        return None
+    return BucketPolicy.from_dict(json.loads(value), True, allow_no_owner)
 
 
 class Grantee(object):
@@ -568,6 +600,410 @@ class CannedACL(object):
 
 canned_acl = CannedACL()
 
+# bucket policy related subresources
+
+
+def from_list(f, x):
+    return [f(y) for y in x]
+
+
+def from_str(x):
+    return x
+
+
+def to_class(c, x):
+    return x.to_dict()
+
+
+class IPAddress(object):
+    def __init__(self, aws_source_ip):
+        """
+
+        @param aws_source_ip:
+        """
+        self.aws_source_ip = aws_source_ip
+
+    @staticmethod
+    def from_dict(obj):
+        """
+
+        @param obj:
+        @return:
+        """
+        aws_source_ip = from_str(obj.get(u"aws:SourceIp"))
+        return IPAddress(aws_source_ip)
+
+    def to_dict(self):
+        """
+
+        @return:
+        """
+        result = {}
+        result[u"aws:SourceIp"] = from_str(self.aws_source_ip)
+        return result
+
+
+class Condition(object):
+    def __init__(self, ip_address, not_ip_address):
+        """
+
+        @param ip_address:
+        @param not_ip_address:
+        """
+        self.ip_address = ip_address
+        self.not_ip_address = not_ip_address
+
+    @staticmethod
+    def from_dict(obj):
+        """
+
+        @param obj:
+        @return:
+        """
+        ip_address = IPAddress.from_dict(obj.get(u"IpAddress"))
+        not_ip_address = IPAddress.from_dict(obj.get(u"NotIpAddress"))
+        return Condition(ip_address, not_ip_address)
+
+    def to_dict(self):
+        """
+
+        @return:
+        """
+        result = {}
+        result[u"IpAddress"] = to_class(IPAddress, self.ip_address)
+        result[u"NotIpAddress"] = to_class(IPAddress, self.not_ip_address)
+        return result
+
+
+class Principal(object):
+    def __init__(self, aws):
+        """
+
+        @param aws:
+        """
+        self.aws = aws
+
+    @staticmethod
+    def from_dict(obj):
+        """
+
+        @param obj:
+        @return:
+        """
+        if isinstance(obj.get(u"AWS"), list):
+            aws = from_list(from_str, obj.get(u"AWS"))
+        else:
+            aws = from_str(obj.get(u"AWS"))
+        return Principal(aws)
+
+    def to_dict(self):
+        """
+
+        @return:
+        """
+        result = {}
+        if isinstance(self.aws, list):
+            result[u"AWS"] = from_list(from_str, self.aws)
+        else:
+            result[u"AWS"] = from_str(self.aws)
+        return result
+
+
+class Statement(object):
+    def __init__(self, sid, effect, principal, action, resource,
+                 condition=None):
+        """
+
+        @param sid:
+        @param effect:
+        @param principal:
+        @param action:
+        @param resource:
+        @param condition:
+        """
+        self.sid = sid
+        self.effect = effect
+        self.principal = principal
+        self.action = action
+        self.resource = resource
+        self.condition = condition
+
+    @staticmethod
+    def from_dict(obj):
+        """
+
+        @param obj:
+        @return:
+        """
+        Statement.validate(obj)
+        sid = None
+        if obj.get(u"Sid"):
+            sid = from_str(obj.get(u"Sid"))
+        effect = from_str(obj.get(u"Effect"))
+        if isinstance(obj.get(u"Principal"), dict):
+            principal = Principal.from_dict(obj.get(u"Principal"))
+        else:
+            principal = from_str(obj.get(u"Principal"))
+        if isinstance(obj.get(u"Action"), list):
+            action = from_list(from_str, obj.get(u"Action"))
+        else:
+            action = from_str(obj.get(u"Action"))
+        if isinstance(obj.get(u"Resource"), list):
+            resource = from_list(from_str, obj.get(u"Resource"))
+        else:
+            resource = from_str(obj.get(u"Resource"))
+        condition = None
+        if obj.get(u"Condition"):
+            condition = Condition.from_dict(obj.get(u"Condition"))
+        return Statement(sid, effect, principal, action, resource, condition)
+
+    @staticmethod
+    def validate(obj):
+        """
+
+        @param obj:
+        @return:
+        """
+        if not obj.get(u"Effect") or \
+                not obj.get(u"Principal") or \
+                not obj.get(u"Action") or \
+                not obj.get(u"Resource"):
+            raise AttributeError
+
+    def to_dict(self):
+        """
+
+        @return:
+        """
+        result = {}
+        if self.sid:
+            result[u"Sid"] = from_str(self.sid)
+        result[u"Effect"] = from_str(self.effect)
+        if isinstance(self.principal, Principal):
+            result[u"Principal"] = to_class(Principal, self.principal)
+        else:
+            result[u"Principal"] = from_str(self.principal)
+        if isinstance(self.action, list):
+            result[u"Action"] = from_list(from_str, self.action)
+        else:
+            result[u"Action"] = from_str(self.action)
+        if isinstance(self.resource, list):
+            result[u"Resource"] = from_list(from_str, self.resource)
+        else:
+            result[u"Resource"] = from_str(self.resource)
+        if self.condition:
+            result[u"Condition"] = to_class(Condition, self.condition)
+        return result
+
+
+class BucketPolicy(object):
+
+    max_json_length = 200 * 1024
+
+    def __init__(self, id, version, statement, s3_acl=False,
+                 allow_no_owner=False):
+        """
+
+        @param id:
+        @param version:
+        @param statement:
+        @param s3_acl:
+        @param allow_no_owner:
+        """
+        self.id = id
+        self.version = version
+        self.statement = statement
+        self.s3_acl = s3_acl
+        self.allow_no_owner = allow_no_owner
+
+    @staticmethod
+    def from_dict(obj, s3_acl=False, allow_no_owner=False):
+        """
+
+        @param obj:
+        @return:
+        """
+        try:
+            BucketPolicy.validate(obj)
+            id = None
+            if obj.get(u"Id"):
+                id = from_str(obj.get(u"Id"))
+            version = None
+            if obj.get(u"Version"):
+                version = from_str(obj.get(u"Version"))
+            statement = from_list(Statement.from_dict, obj.get(u"Statement"))
+        except Exception:
+            raise AttributeError
+        return BucketPolicy(id, version, statement, s3_acl, allow_no_owner)
+
+    @staticmethod
+    def validate(obj):
+        """
+
+        @param obj:
+        @return:
+        """
+        if not obj.get(u"Statement"):
+            raise AttributeError
+
+    def to_dict(self):
+        """
+
+        @return:
+        """
+        try:
+            result = {}
+            if self.id:
+                result[u"Id"] = from_str(self.id)
+            if self.version:
+                result[u"Version"] = self.version
+            result[u"Statement"] = from_list(lambda x: to_class(Statement, x),
+                                             self.statement)
+        except Exception:
+            raise AttributeError
+        return result
+
+    def check_permission(self, user_id, owner_id, method, bucket,
+                         key=None, query=None, req_source_ip=None):
+        """
+
+        @param user_id:
+        @param owner_id:
+        @param method:
+        @param bucket:
+        @param key:
+        @param query:
+        @param req_source_ip:
+        @return:
+        """
+        try:
+            self.check_owner(user_id, owner_id)
+            return
+        except AccessDenied:
+            pass
+        resource = "object" if key else "container"
+        try:
+            user_action = BucketPolicy.user_action(resource, method, query)
+        except KeyError:
+            # TODO decide what to do when action is not a listed one
+            pass
+        for statement in self.statement:
+            if statement.effect == "Allow":
+                principal = statement.principal
+                resource = statement.resource
+                action = statement.action
+                if BucketPolicy.match_principal(user_id, principal) and \
+                        BucketPolicy.match_resource(resource, bucket, key) \
+                        and user_action in action:
+                    return
+        raise AccessDenied
+
+    def check_owner(self, user_id, owner_id):
+        """
+        Check that the user is an owner.
+
+        @param user_id:
+        @param owner_id:
+        @return:
+        """
+        if not self.s3_acl:
+            # Ignore S3api ACL.
+            return
+
+        if not owner_id:
+            if self.allow_no_owner:
+                # No owner means public.
+                return
+            raise AccessDenied()
+
+        if user_id != owner_id:
+            raise AccessDenied()
+
+    @staticmethod
+    def user_action(resource, method, query=None):
+        """
+
+        @param resource:
+        @param method:
+        @param query:
+        @return:
+        """
+        if query:
+            return BucketPolicyActionsMap[(method, resource, query)]
+        return BucketPolicyActionsMap[(method, resource)]
+
+    @staticmethod
+    def match_action(action, user_action):
+        """
+
+        @param action:
+        @param user_action:
+        @return:
+        """
+        if action == "*":
+            return True
+        if isinstance(action, list):
+            return user_action in action
+        else:
+            return action == user_action
+        return False
+
+    @staticmethod
+    def match_principal(user_id, principal):
+        """
+
+        @param user_id:
+        @param principal:
+        @return:
+        """
+        user_id = "arn:aws:iam::{}".format(user_id)
+        if principal == "*":
+            return True
+        if principal.aws:
+            if isinstance(principal.aws, list):
+                for user in principal.aws:
+                    if user_id == user:
+                        return True
+            elif principal.aws == "*":
+                return True
+            else:
+                if user_id == principal.aws:
+                    return True
+        return False
+
+    @staticmethod
+    def match_resource(resource, container, obj):
+        """
+
+        @param resource:
+        @param container:
+        @param obj:
+        @return:
+        """
+        def match(_resource):
+            part = _resource.partition(container)
+            if part[1] == container:
+                if not obj:
+                    if part[2] in ['/*', '/', '']:
+                        return True
+                else:
+                    head, tail = os.path.split(obj)
+                    if "/*" == part[2] or\
+                            "/{}".format(obj) == part[2] or\
+                            "/{}/*".format(head) == part[2]:
+                        return True
+            return False
+
+        if isinstance(resource, list):
+            for item in resource:
+                if match(item):
+                    return True
+        else:
+            return match(resource)
+
+        return False
+
+
 ACLPrivate = canned_acl['private']
 ACLPublicRead = canned_acl['public-read']
 ACLPublicReadWrite = canned_acl['public-read-write']
@@ -575,3 +1011,27 @@ ACLAuthenticatedRead = canned_acl['authenticated-read']
 ACLBucketOwnerRead = canned_acl['bucket-owner-read']
 ACLBucketOwnerFullControl = canned_acl['bucket-owner-full-control']
 ACLLogDeliveryWrite = canned_acl['log-delivery-write']
+
+# refer https://docs.aws.amazon.com/IAM/latest/UserGuide/list_amazons3.html
+BucketPolicyActionsMap = {
+    ("HEAD", "container"): "s3:HeadBucket",
+    ("GET", "container"): "s3:ListBucket",
+    ("GET", "container", "acl"): "s3:GetBucketAcl",
+    ("GET", "container", "policy"): "s3:GetBucketPolicy",
+    ("GET", "container", "versioning"): "s3:GetBucketVersioning",
+    ("GET", "container", "uploads"): "s3:ListBucketMultipartUploads",
+    ("GET", "container", "versions"): "s3:ListBucketVersions",
+    ("PUT", "container"): "s3:CreateBucket",
+    ("PUT", "container", "acl"): "s3:PutBucketAcl",
+    ("PUT", "container", "policy"): "s3:PutBucketPolicy",
+    ("PUT", "container", "versioning"): "s3:PutBucketVersioning",
+    ("DELETE", "container"): "s3:DeleteBucket",
+    ("DELETE", "container", "policy"): "s3:DeleteBucketPolicy",
+    ("GET", "object"): "s3:GetObject",
+    ("GET", "object", "acl"): "s3:GetObjectAcl",
+    ("GET", "object", "uploadId"): "s3:ListMultipartUploadParts",
+    ("PUT", "object"): "s3:PutObject",
+    ("PUT", "object", "acl"): "s3:PutObjectAcl",
+    ("DELETE", "object"): "s3:DeleteObject",
+    ('DELETE', 'object', 'uploadId'): "s3:AbortMultipartUpload"
+}

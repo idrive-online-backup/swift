@@ -289,6 +289,7 @@ class S3ApiMiddleware(object):
                 self.conf.location, self.conf.force_swift_request_proxy_log,
                 self.conf.dns_compliant_bucket_names,
                 self.conf.allow_multipart_uploads, self.conf.allow_no_owner)
+            self.logger.debug("req %s", req)
             resp = self.handle_request(req)
         except NotS3Request:
             resp = self.app
@@ -312,12 +313,14 @@ class S3ApiMiddleware(object):
         self.logger.debug('Calling S3Api Middleware')
         try:
             controller = req.controller(self.app, self.conf, self.logger)
+            self.logger.debug('controller %s', controller)
         except S3NotImplemented:
             # TODO: Probably we should distinct the error to log this warning
             self.logger.warning('multipart: No SLO middleware in pipeline')
             raise
 
         acl_handler = get_acl_handler(req.controller_name)(req, self.logger)
+        self.logger.debug('acl_handler %s', acl_handler)
         req.set_acl_handler(acl_handler)
 
         if hasattr(controller, req.method):
@@ -325,7 +328,9 @@ class S3ApiMiddleware(object):
             if not getattr(handler, 'publicly_accessible', False):
                 raise MethodNotAllowed(req.method,
                                        req.controller.resource_type())
+            self.logger.debug('handler %s', handler)
             res = handler(req)
+            self.logger.debug('handler reponse %s', res)
         else:
             raise MethodNotAllowed(req.method,
                                    req.controller.resource_type())
